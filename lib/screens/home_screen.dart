@@ -6,6 +6,7 @@ import '../providers/theme_provider.dart';
 import '../providers/target_provider.dart';
 import '../providers/timetable_provider.dart';
 import '../providers/college_day_provider.dart';
+import '../providers/notification_provider.dart';
 import '../constants.dart';
 import '../models/subject.dart';
 import '../models/timetable_entry.dart';
@@ -49,11 +50,13 @@ class _HomeScreenState extends State<HomeScreen> {
       
       // If user is going to college today, schedule notifications
       final collegeDay = context.read<CollegeDayProvider>();
+      final notifProv = context.read<NotificationProvider>();
       if (collegeDay.isGoingToday && timetableProv.isLoaded) {
         print('HomeScreen: User is going to college, scheduling notifications for today.');
         await NotificationService().scheduleAllForDate(
           date: DateTime.now(),
           entries: timetableProv.todayPeriods,
+          minutesBefore: notifProv.remindMinutes,
         );
       }
     } else {
@@ -475,12 +478,14 @@ class _HomeScreenState extends State<HomeScreen> {
               value: isGoing,
               onChanged: (val) async {
                 final timetableProv = context.read<TimetableProvider>();
+                final notifProv = context.read<NotificationProvider>();
                 await provider.toggleToday();
                 // Schedule or cancel notifications
                 if (val && timetableProv.isLoaded) {
                   await NotificationService().scheduleAllForDate(
                     date: DateTime.now(),
                     entries: timetableProv.todayPeriods,
+                    minutesBefore: notifProv.remindMinutes,
                   );
                 } else {
                   await NotificationService().cancelAll();

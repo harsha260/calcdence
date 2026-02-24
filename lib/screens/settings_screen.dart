@@ -4,6 +4,8 @@ import '../providers/attendance_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/target_provider.dart';
 import '../providers/timetable_provider.dart';
+import '../providers/college_day_provider.dart';
+import '../providers/notification_provider.dart';
 import '../services/notification_service.dart';
 import '../models/timetable_entry.dart';
 
@@ -83,6 +85,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Notification Settings
+              Consumer<NotificationProvider>(
+                builder: (context, notifProv, _) {
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.notifications_active, color: Colors.deepPurple),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Remind me: ${notifProv.remindMinutes} mins before',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Slider(
+                            value: notifProv.remindMinutes.toDouble(),
+                            min: 0,
+                            max: 60,
+                            divisions: 12, // 5 min increments
+                            label: '${notifProv.remindMinutes} mins',
+                            activeColor: Colors.deepPurple,
+                            onChanged: (val) async {
+                              final mins = val.round();
+                              await notifProv.setRemindMinutes(mins);
+                              
+                              // Re-schedule if going to college today
+                              final collegeDay = context.read<CollegeDayProvider>();
+                              final timetableProv = context.read<TimetableProvider>();
+                              if (collegeDay.isGoingToday && timetableProv.isLoaded) {
+                                await NotificationService().scheduleAllForDate(
+                                  date: DateTime.now(),
+                                  entries: timetableProv.todayPeriods,
+                                  minutesBefore: mins,
+                                );
+                              }
+                            },
+                          ),
+                          const Text(
+                            'Notifications will fire this many minutes before each class starts.',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 16),
