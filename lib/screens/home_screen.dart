@@ -514,18 +514,27 @@ class _HomeScreenState extends State<HomeScreen> {
       final subject = attendanceProv.getSubjectByCode(period.subjectId);
       if (subject == null) continue;
 
-      final surplus = subject.percentage - target;
+      // New Formula: (Attended / (Total + 1)) * 100 >= Target
+      final p = subject.classesAttended;
+      final t = subject.totalClasses;
+      final percentageIfBunked = (p / (t + 1)) * 100;
+      final isSafe = percentageIfBunked >= target;
+      
+      // Calculate surplus for display (relative to target)
+      final currentSurplus = subject.percentage - target;
+
       tips.add({
         'name': subject.subjectName,
-        'surplus': surplus,
-        'pct': subject.percentage,
+        'currentSurplus': currentSurplus,
+        'isSafe': isSafe,
+        'pctIfBunked': percentageIfBunked,
         'period': period.period,
         'time': period.startTime,
       });
     }
 
-    // Sort by surplus descending (safest to bunk first)
-    tips.sort((a, b) => (b['surplus'] as double).compareTo(a['surplus'] as double));
+    // Sort by startTime (padded for correct string sorting)
+    tips.sort((a, b) => (a['time'] as String).padLeft(5, '0').compareTo((b['time'] as String).padLeft(5, '0')));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -545,8 +554,9 @@ class _HomeScreenState extends State<HomeScreen> {
             itemCount: tips.length,
             itemBuilder: (context, index) {
               final tip = tips[index];
-              final surplus = tip['surplus'] as double;
-              final isSafe = surplus > 0;
+              final isSafe = tip['isSafe'] as bool;
+              final currentSurplus = tip['currentSurplus'] as double;
+              final percentageIfBunked = tip['pctIfBunked'] as double;
 
               return Card(
                 elevation: 2,
@@ -558,11 +568,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        tip['name'],
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Text(
+                          tip['name'],
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Row(
@@ -574,7 +585,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isSafe ? 'Safe (+${surplus.toStringAsFixed(1)}%)' : 'Risky (${surplus.toStringAsFixed(1)}%)',
+                            isSafe ? 'Safe (${percentageIfBunked.toStringAsFixed(1)}%)' : 'Risky (${percentageIfBunked.toStringAsFixed(1)}%)',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,

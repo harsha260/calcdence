@@ -9,35 +9,58 @@ class TimetableProvider extends ChangeNotifier {
   final api.CampXApiService _apiService = api.CampXApiService();
 
   TimetableState _state = TimetableState.initial;
-  List<TimetableEntry> _entries = [];
+  List<TimetableEntry> _templateEntries = [];
+  List<TimetableEntry> _specificEntries = [];
   String? _errorMessage;
 
   TimetableState get state => _state;
   String? get errorMessage => _errorMessage;
   bool get isLoaded => _state == TimetableState.loaded;
-  List<TimetableEntry> get entries => _entries;
+  List<TimetableEntry> get entries => _templateEntries; // Return template by default for backward compatibility
 
-  /// All periods for a given weekday (1=Mon…5=Fri), sorted by period number.
-  List<TimetableEntry> periodsForWeekday(int weekday) => _entries
+  /// All periods for a given weekday (1=Mon…5=Fri), sorted by start time.
+  List<TimetableEntry> periodsForWeekday(int weekday) => _templateEntries
       .where((e) => e.weekday == weekday)
       .toList()
-    ..sort((a, b) => a.period.compareTo(b.period));
+    ..sort((a, b) {
+      // Ensure "09:00" vs "10:00" sorts correctly
+      final aTime = a.startTime.padLeft(5, '0');
+      final bTime = b.startTime.padLeft(5, '0');
+      return aTime.compareTo(bTime);
+    });
 
   /// Today's periods.
   List<TimetableEntry> get todayPeriods =>
-      periodsForWeekday(DateTime.now().weekday);
+      periodsForDate(DateTime.now());
 
   /// Periods on a specific date.
-  List<TimetableEntry> periodsForDate(DateTime date) =>
-      periodsForWeekday(date.weekday);
+  /// Prioritizes specific date entries from API, falls back to template.
+  List<TimetableEntry> periodsForDate(DateTime date) {
+    // 1. Check if we have specific entries for this exact date (e.g. "2026-02-25")
+    final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final specific = _specificEntries.where((e) => e.sessionDate == dateStr).toList();
+    
+    if (specific.isNotEmpty) {
+      print('TimetableProvider: Found ${specific.length} specific entries for $dateStr');
+      // Sort by startTime with padding
+      return specific..sort((a, b) {
+        final aTime = a.startTime.padLeft(5, '0');
+        final bTime = b.startTime.padLeft(5, '0');
+        return aTime.compareTo(bTime);
+      });
+    }
+
+    // 2. Fallback to template for that weekday
+    return periodsForWeekday(date.weekday);
+  }
 
   /// How many periods per day does [subjectId] appear on average?
-  /// Uses real timetable data instead of dividing by 7.
+  /// Uses template entries for calculation.
   double periodsPerDayForSubject(int subjectId) {
-    if (_entries.isEmpty) return 0;
+    if (_templateEntries.isEmpty) return 0;
     // Count occurrences per weekday
     final byday = <int, int>{};
-    for (final e in _entries) {
+    for (final e in _templateEntries) {
       if (e.subjectId == subjectId) {
         byday[e.weekday] = (byday[e.weekday] ?? 0) + 1;
       }
@@ -47,7 +70,7 @@ class TimetableProvider extends ChangeNotifier {
     return byday.values.fold(0, (a, b) => a + b) / 5; // 5 working days
   }
 
-  /// Fetch from API (NO - now using hardcoded template per user request).
+  /// Fetch from API and merge with hardcoded template.
   Future<void> fetchTimetable({Map<int, String> nameMap = const {}}) async {
     if (_state == TimetableState.loading) return;
     _state = TimetableState.loading;
@@ -55,12 +78,30 @@ class TimetableProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Per user request: hardcode the timetable as the API data is unreliable/outdated
-      _entries = _getHardcodedTimetable(nameMap);
+      // 1. Load stable hardcoded template first
+      _templateEntries = _getHardcodedTimetable(nameMap);
+      
+      // 2. Attempt to fetch real timetable from API for specific date records
+      print('TimetableProvider: Fetching dynamic timetable from API...');
+      final rawApiEntries = await _apiService.getTimetable();
+      
+      _specificEntries = rawApiEntries
+          .map((json) => TimetableEntry.fromJson(json, nameMap: nameMap))
+          .where((e) => e.sessionDate != null)
+          .toList();
+      
+      print('TimetableProvider: Loaded ${_templateEntries.length} template entries and ${_specificEntries.length} specific date overrides.');
+      
       _state = TimetableState.loaded;
     } catch (e) {
-      _errorMessage = e.toString();
-      _state = TimetableState.error;
+      print('TimetableProvider: Error fetching dynamic timetable: $e');
+      // If API fails, we still have the template loaded, so we can consider it "loaded"
+      if (_templateEntries.isNotEmpty) {
+        _state = TimetableState.loaded;
+      } else {
+        _errorMessage = e.toString();
+        _state = TimetableState.error;
+      }
     }
     notifyListeners();
   }

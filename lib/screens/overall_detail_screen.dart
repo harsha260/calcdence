@@ -38,18 +38,23 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
   // Estimated number of school days conducted so far
   late final double _totalDays;
 
+  double _getDynamicPeriodsPerDay(BuildContext context) {
+    final tt = context.read<TimetableProvider>();
+    if (tt.isLoaded && tt.entries.isNotEmpty) {
+      return tt.entries.length / 5.0;
+    }
+    return 6.0; // Fallback
+  }
+
   @override
   void initState() {
     super.initState();
     
-    // Fetch average periods per day from timetable
+    // Initial value
     final tt = context.read<TimetableProvider>();
-    if (tt.isLoaded && tt.entries.isNotEmpty) {
-      // Calculate total unique slots in a week divided by 5 days
-      _periodsPerDay = tt.entries.length / 5.0;
-    } else {
-      _periodsPerDay = 6.0; // Fallback to a reasonable average
-    }
+    _periodsPerDay = (tt.isLoaded && tt.entries.isNotEmpty) 
+        ? tt.entries.length / 5.0 
+        : 6.0;
 
     _totalDays = widget.conducted > 0
         ? widget.conducted / _periodsPerDay

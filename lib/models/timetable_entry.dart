@@ -7,6 +7,7 @@ class TimetableEntry {
   final String subjectName;
   final String startTime; // e.g. "09:00"
   final String endTime;   // e.g. "09:50"
+  final String? sessionDate; // e.g. "2026-02-25" (ISO format)
 
   const TimetableEntry({
     required this.id,
@@ -16,6 +17,7 @@ class TimetableEntry {
     required this.subjectName,
     required this.startTime,
     required this.endTime,
+    this.sessionDate,
   });
 
   /// Parse from raw API map.
@@ -61,10 +63,14 @@ class TimetableEntry {
       else if (s.startsWith('SAT')) day = 'SATURDAY';
       else if (s.startsWith('SUN')) day = 'SUNDAY';
       else day = 'MONDAY';
-    } else if (sessionDate.isNotEmpty) {
+    } else {
+      day = 'MONDAY';
+    }
+    String? formattedSessionDate;
+    if (sessionDate.isNotEmpty) {
       try {
-        // sessionDate is likely "2026-02-25" or similar ISO format
         final dt = DateTime.parse(sessionDate);
+        formattedSessionDate = "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
         const dayNames = [
           '',
           'MONDAY',
@@ -75,18 +81,15 @@ class TimetableEntry {
           'SATURDAY',
           'SUNDAY'
         ];
-        day = dayNames[dt.weekday];
-        print('TimetableEntry: Derived day $day from sessionDate $sessionDate');
+        day = dayNames[dt.weekday]; // Overwrite day from sessionDate if available
+        print('TimetableEntry: Derived day $day and date $formattedSessionDate from sessionDate $sessionDate');
       } catch (e) {
         print('TimetableEntry: Error parsing sessionDate: $e');
-        day = 'MONDAY';
       }
-    } else {
-      day = 'MONDAY';
     }
     print('TimetableEntry: Resolved day to: $day');
 
-    final period = _toInt(json['period'] ?? json['periodNo'] ?? json['slotNo'] ?? 1);
+    int period = _toInt(json['period'] ?? json['periodNo'] ?? json['slotNo'] ?? json['slot'] ?? 0);
 
     final subjectId = _toInt(json['subjectId'] ?? json['subject_id'] ?? json['courseId']);
 
@@ -99,21 +102,61 @@ class TimetableEntry {
     final startTime = (json['startTime'] ??
         json['start_time'] ??
         json['fromTime'] ??
-        _periodToTime(period, isStart: true)).toString();
+        (period > 0 ? _periodToTime(period, isStart: true) : '08:50')).toString();
     final endTime = (json['endTime'] ??
         json['end_time'] ??
         json['toTime'] ??
-        _periodToTime(period, isStart: false)).toString();
+        (period > 0 ? _periodToTime(period, isStart: false) : '09:40')).toString();
+
+    // If period is missing or 0, try to deduce it from startTime
+    if (period <= 1) {
+      final deduced = _startTimeToPeriod(startTime);
+      if (deduced > 0) period = deduced;
+    }
 
     return TimetableEntry(
       id: id,
       day: day,
-      period: period,
+      period: period > 0 ? period : 1,
       subjectId: subjectId,
       subjectName: subjectName,
       startTime: startTime,
       endTime: endTime,
+      sessionDate: formattedSessionDate,
     );
+  }
+
+  /// Deduce period number for ANITS slots based on start time
+  static int _startTimeToPeriod(String t) {
+    try {
+      // Handle "08:50", "8:50", "08:50:00"
+      final parts = t.split(':');
+      if (parts.length < 2) return 0;
+      
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      final totalMinutes = hour * 60 + minute;
+
+      // ANITS Slots in minutes from midnight:
+      // P1: 08:50 (530)
+      // P2: 09:40 (580)
+      // P3: 10:30 (630)
+      // P4: 11:20 (680)
+      // P5: 13:00 (780)
+      // P6: 13:50 (830)
+      // P7: 14:40 (880)
+      
+      if (totalMinutes >= 510 && totalMinutes <= 540) return 1;
+      if (totalMinutes > 540 && totalMinutes <= 590) return 2;
+      if (totalMinutes > 590 && totalMinutes <= 640) return 3;
+      if (totalMinutes > 640 && totalMinutes <= 700) return 4;
+      if (totalMinutes >= 760 && totalMinutes <= 800) return 5;
+      if (totalMinutes > 800 && totalMinutes <= 850) return 6;
+      if (totalMinutes > 850 && totalMinutes <= 900) return 7;
+    } catch (e) {
+      print('TimetableEntry: Deduction error: $e');
+    }
+    return 0;
   }
 
   /// Fallback: map period number to default ANITS time slots.
