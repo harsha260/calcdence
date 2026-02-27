@@ -41,29 +41,92 @@ class TimetableProvider extends ChangeNotifier {
       periodsForDate(DateTime.now());
 
   /// Periods on a specific date.
-  /// Prioritizes specific date entries from API, falls back to template.
+  /// Start with template, then overlay real attendance logs if found.
   List<TimetableEntry> periodsForDate(DateTime date) {
     final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
     
-    // 0. Check holiday
-    if (isHoliday(date)) {
-      return [];
+    if (isHoliday(date)) return [];
+
+    final template = periodsForWeekday(date.weekday);
+    if (template.isEmpty) return [];
+
+    final logs = _specificEntries.where((e) => e.sessionDate == dateStr).toList();
+    if (logs.isEmpty) {
+      // Debug: print('TimetableProvider: No logs found for $dateStr');
+      return template;
     }
 
-    // 1. Check if we have specific entries for this exact date
-    final specific = _specificEntries.where((e) => e.sessionDate == dateStr).toList();
-    
-    if (specific.isNotEmpty) {
-      // Sort by startTime with padding
-      return specific..sort((a, b) {
-        final aTime = a.startTime.padLeft(5, '0');
-        final bTime = b.startTime.padLeft(5, '0');
-        return aTime.compareTo(bTime);
-      });
+    print('TimetableProvider: Merging ${logs.length} logs for $dateStr into ${template.length} template slots');
+    final result = <TimetableEntry>[];
+    final usedLogs = <int>{};
+
+    for (var temp in template) {
+      print('TimetableProvider: Slot ${temp.subjectName} P${temp.period} (id:${temp.subjectId})');
+      int logIndex = -1;
+      // Try exact subject + period match first
+      for (int i = 0; i < logs.length; i++) {
+        if (usedLogs.contains(i)) continue;
+        final log = logs[i];
+        if (log.subjectId == temp.subjectId && log.period == temp.period) {
+          logIndex = i;
+          print('  -> Exact match with log $i (P${log.period})');
+          break;
+        }
+      }
+
+      // If no exact match, try subject + time match
+      if (logIndex == -1) {
+        for (int i = 0; i < logs.length; i++) {
+          if (usedLogs.contains(i)) continue;
+          final log = logs[i];
+          if (log.subjectId == temp.subjectId) {
+            try {
+              final tParts = temp.startTime.split(':');
+              final lParts = log.startTime.split(':');
+              if (tParts.length >= 2 && lParts.length >= 2) {
+                final tMin = int.parse(tParts[0]) * 60 + int.parse(tParts[1]);
+                final lMin = int.parse(lParts[0]) * 60 + int.parse(lParts[1]);
+                if ((tMin - lMin).abs() <= 30) {
+                  logIndex = i;
+                  print('  -> Time window match with log $i (${log.startTime})');
+                  break;
+                }
+              }
+            } catch (_) {}
+          }
+        }
+      }
+
+      if (logIndex != -1) {
+        final log = logs[logIndex];
+        usedLogs.add(logIndex);
+        final merged = temp.copyWith(
+          sessionDate: dateStr,
+          isAttended: log.isAttended,
+          topic: log.topic ?? temp.topic,
+          startTime: log.startTime.isNotEmpty ? log.startTime : temp.startTime,
+          endTime: log.endTime.isNotEmpty ? log.endTime : temp.endTime,
+        );
+        print('  -> Merged with log $logIndex. isAttended: ${merged.isAttended}');
+        result.add(merged);
+      } else {
+        print('  -> No log match found');
+        result.add(temp.copyWith(sessionDate: dateStr));
+      }
     }
 
-    // 2. Fallback to template for that weekday
-    return periodsForWeekday(date.weekday);
+    for (int i = 0; i < logs.length; i++) {
+      if (!usedLogs.contains(i)) {
+        print('TimetableProvider: Adding unmatched log: ${logs[i].subjectName} ${logs[i].startTime}');
+        result.add(logs[i]);
+      }
+    }
+
+    return result..sort((a, b) {
+      final aTime = a.startTime.padLeft(5, '0');
+      final bTime = b.startTime.padLeft(5, '0');
+      return aTime.compareTo(bTime);
+    });
   }
 
   /// How many periods per day does [subjectId] appear on average?
@@ -161,20 +224,29 @@ class TimetableProvider extends ChangeNotifier {
     // Create a map for quick lookup and deduplication by date + period
     final Map<String, TimetableEntry> entryMap = {
       for (var e in _specificEntries) 
-        if (e.sessionDate != null) "${e.sessionDate}_${e.period}": e
+        if (e.sessionDate != null) "${e.sessionDate}_${e.subjectId}_${e.period}": e
     };
 
+    print('TimetableProvider: updateSpecificEntries received ${sessions.length} sessions. Current specific count: ${_specificEntries.length}');
     for (var s in sessions) {
       if (s.sessionDate == null) continue;
-      final key = "${s.sessionDate}_${s.period}";
+      final key = "${s.sessionDate}_${s.subjectId}_${s.period}";
       
       // Update or add
-      if (!entryMap.containsKey(key) || s.isAttended != null) {
+      if (!entryMap.containsKey(key)) {
         entryMap[key] = s;
+      } else if (s.isAttended != null) {
+        // Upgrade existing entry with attendance data
+        final existing = entryMap[key]!;
+        entryMap[key] = existing.copyWith(
+          isAttended: s.isAttended,
+          topic: s.topic ?? existing.topic,
+        );
       }
     }
 
     _specificEntries = entryMap.values.toList();
+    print('TimetableProvider: Final specificEntries count: ${_specificEntries.length}');
     notifyListeners();
   }
 
@@ -233,7 +305,7 @@ class TimetableProvider extends ChangeNotifier {
     add('FRIDAY', 2, 1345, '09:40', '10:30'); // DAA
     add('FRIDAY', 3, 1332, '10:30', '11:20'); // EIPR
     add('FRIDAY', 4, 1343, '11:20', '12:10'); // CD
-    add('FRIDAY', 5, 1344, '13:00', '15:30'); // PP LAB (Using 1344 for Lab context)
+    add('FRIDAY', 5, 1349, '13:00', '15:30'); // PYTHON LAB (ID 1349 from subjects API)
 
     return entries;
   }

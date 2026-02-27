@@ -30,19 +30,19 @@ class TimetableEntry {
     Map<String, dynamic> json, {
     Map<int, String> nameMap = const {},
   }) {
-    int _toInt(dynamic val) {
+    int toInt(dynamic val) {
       if (val is int) return val;
       if (val is String) return int.tryParse(val) ?? 0;
       if (val is double) return val.toInt();
       return 0;
     }
 
-    final id = _toInt(json['id']);
+    final id = toInt(json['id']);
 
     // Day: might be "MONDAY" / "Monday" / 1-7 integer
     String day;
     final rawDay = json['day'] ?? json['dayOfWeek'] ?? json['weekDay'] ?? json['day_name'] ?? json['weekday'] ?? '';
-    final sessionDate = json['sessionDate']?.toString() ?? '';
+    final sessionDate = (json['sessionDate'] ?? json['date'])?.toString() ?? '';
     print('TimetableEntry: Parsing. rawDay: "$rawDay", sessionDate: "$sessionDate"');
 
     if (rawDay is int) {
@@ -59,8 +59,9 @@ class TimetableEntry {
       day = rawDay >= 1 && rawDay <= 7 ? dayNames[rawDay] : 'MONDAY';
     } else if (rawDay.toString().isNotEmpty) {
       final s = rawDay.toString().toUpperCase();
-      if (s.startsWith('MON')) day = 'MONDAY';
-      else if (s.startsWith('TUE')) day = 'TUESDAY';
+      if (s.startsWith('MON')) {
+        day = 'MONDAY';
+      } else if (s.startsWith('TUE')) day = 'TUESDAY';
       else if (s.startsWith('WED')) day = 'WEDNESDAY';
       else if (s.startsWith('THU')) day = 'THURSDAY';
       else if (s.startsWith('FRI')) day = 'FRIDAY';
@@ -93,9 +94,9 @@ class TimetableEntry {
     }
     print('TimetableEntry: Resolved day to: $day');
 
-    int period = _toInt(json['period'] ?? json['periodNo'] ?? json['slotNo'] ?? json['slot'] ?? 0);
+    int period = toInt(json['period'] ?? json['periodNo'] ?? json['slotNo'] ?? json['slot'] ?? 0);
 
-    final subjectId = _toInt(json['subjectId'] ?? json['subject_id'] ?? json['courseId']);
+    final subjectId = toInt(json['subjectId'] ?? json['subject_id'] ?? json['courseId']);
 
     final apiName =
         (json['subjectName'] ?? json['subject']?['name'] ?? '').toString();
@@ -116,8 +117,16 @@ class TimetableEntry {
     if (json.containsKey('orderNumber')) {
       period = (json['orderNumber'] is int) ? json['orderNumber'] : int.tryParse(json['orderNumber'].toString()) ?? 1;
     }
-    if (json.containsKey('fromTime')) startTime = json['fromTime'].toString().substring(0, 5);
-    if (json.containsKey('toTime')) endTime = json['toTime'].toString().substring(0, 5);
+    
+    // Safer time parsing
+    if (json.containsKey('fromTime')) {
+      final ft = json['fromTime'].toString();
+      startTime = ft.length >= 5 ? ft.substring(0, 5) : ft;
+    }
+    if (json.containsKey('toTime')) {
+      final tt = json['toTime'].toString();
+      endTime = tt.length >= 5 ? tt.substring(0, 5) : tt;
+    }
 
     // If period is missing or 0, try to deduce it from startTime
     if (period <= 1) {
@@ -126,25 +135,42 @@ class TimetableEntry {
     }
 
     // Attendance and Topic
-    final rawAtt = json['status'] ?? 
-                 json['isAttended'] ?? 
+    // CRITICAL: For Anits/CampX, 'status' is often used where false=Present, true=Absent.
+    // We prioritize other specific attendance keys first.
+    final hasStatus = json.containsKey('status');
+    final rawAtt = json['isAttended'] ?? 
                  json['present'] ?? 
                  json['attendanceStatus'] ?? 
                  json['attendance_status'] ??
                  json['isPresent'] ??
-                 json['attended'];
+                 json['attended'] ??
+                 json['is_present'] ??
+                 json['status'];
+
     bool? attended;
     if (rawAtt != null) {
       if (rawAtt is bool) {
-        attended = rawAtt;
+        // If it came from the 'status' key, we invert it for this specific API pattern
+        if (hasStatus && rawAtt == json['status']) {
+          attended = !rawAtt;
+        } else {
+          attended = rawAtt;
+        }
       } else {
         final s = rawAtt.toString().toLowerCase();
-        if (s == 'present' || s == '1' || s == 'true' || s == 'p') {
+        if (s == 'present' || s == '1' || s == 'true' || s == 'p' || s == 'attended') {
           attended = true;
-        } else if (s == 'absent' || s == '0' || s == 'false' || s == 'a') {
+        } else if (s == 'absent' || s == '0' || s == 'false' || s == 'a' || s == 'missed' || s == 'not_attended') {
           attended = false;
         }
       }
+    }
+    
+    // Debug: If everything is absent, let's see why
+    if (sessionDate.toString().contains('2026-02') && rawAtt != null) {
+      print('TimetableEntry: DEBUG session $sessionDate $subjectName (P$period). rawAtt: $rawAtt (${rawAtt.runtimeType}) -> attended: $attended. Keys: ${json.keys.toList()}');
+      // If still finding issues, uncomment next line for full dump
+      // print('TimetableEntry: FULL JSON: $json');
     }
 
     // Handle topics list from timeline

@@ -86,6 +86,8 @@ class AttendanceProvider extends ChangeNotifier {
           nameMap[code] = AppConstants.subjectNames[code] ?? 'Subject $code';
         }
       }
+      print('AttendanceProvider: Final subject mappings:');
+      nameMap.forEach((code, name) => print('  $code -> $name'));
       print('AttendanceProvider: Final attendanceIds to fetch: $attendanceIds');
 
       // ── Step 2: fetch attendance per subject ─────────────────────────
@@ -102,16 +104,18 @@ class AttendanceProvider extends ChangeNotifier {
           final subject = Subject.fromJson(data);
           
           // EXTRACT SESSIONS: Look for logs in the response
+          print('AttendanceProvider: Response keys for subject $id: ${data.keys.toList()}');
           final rawLogs = data['timeline'] ??
                          data['attendanceLogs'] ?? 
                          data['sessionList'] ?? 
                          data['attendance_logs'] ?? 
+                         data['session_logs'] ??
                          data['data'];
           
           if (rawLogs is List) {
+            print('AttendanceProvider: Found ${rawLogs.length} logs for subject $id');
             for (var log in rawLogs) {
               if (log is Map) {
-                // Ensure the log has subject info
                 final logMap = Map<String, dynamic>.from(log);
                 logMap['subjectId'] = id;
                 logMap['subjectName'] = subject.subjectName;
@@ -119,6 +123,9 @@ class AttendanceProvider extends ChangeNotifier {
                 final entry = TimetableEntry.fromJson(logMap, nameMap: nameMap);
                 if (entry.sessionDate != null) {
                   allSessions.add(entry);
+                  // print('AttendanceProvider: Added session ${entry.subjectName} on ${entry.sessionDate} att:${entry.isAttended}');
+                } else {
+                  print('AttendanceProvider: Session date NULL for log: $log');
                 }
               }
             }
@@ -152,6 +159,10 @@ class AttendanceProvider extends ChangeNotifier {
 
       _nameMap = nameMap;
       _allSessions = allSessions; // Store for TimetableProvider to pick up
+      print('AttendanceProvider: Total sessions collected: ${allSessions.length}');
+      if (allSessions.isNotEmpty) {
+        print('AttendanceProvider: First session sample: ${allSessions.first.subjectName} ${allSessions.first.sessionDate} att:${allSessions.first.isAttended}');
+      }
       _state = AttendanceState.loaded;
     } catch (e) {
       _errorMessage = e.toString();

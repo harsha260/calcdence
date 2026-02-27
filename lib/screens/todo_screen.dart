@@ -62,13 +62,13 @@ class _TodoScreenState extends State<TodoScreen> {
           }
 
           if (provider.todos.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.playlist_add_check, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Stay organized! Add your first task.', style: TextStyle(color: Colors.grey)),
+                  Icon(Icons.playlist_add_check, size: 64, color: Theme.of(context).disabledColor),
+                  const SizedBox(height: 16),
+                  Text('Stay organized! Add your first task.', style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6))),
                 ],
               ),
             );
@@ -81,7 +81,7 @@ class _TodoScreenState extends State<TodoScreen> {
               final todo = provider.todos[index];
               return Card(
                 elevation: todo.isDone ? 0 : 2,
-                color: todo.isDone ? Colors.grey[100] : null,
+                color: todo.isDone ? Theme.of(context).cardColor.withOpacity(0.7) : null,
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
@@ -94,7 +94,7 @@ class _TodoScreenState extends State<TodoScreen> {
                     todo.title,
                     style: TextStyle(
                       decoration: todo.isDone ? TextDecoration.lineThrough : null,
-                      color: todo.isDone ? Colors.grey : null,
+                      color: todo.isDone ? Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6) : null,
                       fontWeight: todo.isDone ? FontWeight.normal : FontWeight.w500,
                     ),
                   ),

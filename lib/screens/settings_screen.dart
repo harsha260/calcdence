@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../constants.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/target_provider.dart';
@@ -47,7 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   value: themeProv.isDark,
                   onChanged: (val) => themeProv.toggle(),
-                  activeColor: Colors.deepPurple,
+                  activeThumbColor: Colors.deepPurple,
                 ),
               ),
 
@@ -84,7 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const Text(
                         'This affects visual status and bunk/recovery recommendations.',
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                        style: TextStyle(fontSize: 12),
                       ),
                     ],
                   ),
@@ -140,7 +141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const Text(
                             'Notifications will fire this many minutes before each class starts.',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                            style: TextStyle(fontSize: 12),
                           ),
                         ],
                       ),
@@ -260,19 +261,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: const Icon(Icons.logout),
               label: const Text('Logout'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade50,
+                backgroundColor: themeProv.isDark ? Colors.red.withOpacity(0.15) : Colors.red.shade50,
                 foregroundColor: Colors.red,
-                side: BorderSide(color: Colors.red.shade100),
+                side: BorderSide(color: Colors.red.withOpacity(0.3)),
                 minimumSize: const Size(double.infinity, 50),
               ),
             ),
           ),
 
           const SizedBox(height: 32),
-          const Center(
+          Center(
             child: Text(
-              'Calcdence Evolution v1.1.0',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              '${AppConstants.appName} v1.1.0',
+              style: const TextStyle(fontSize: 12),
             ),
           ),
           const SizedBox(height: 16),
@@ -348,7 +349,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(color: Colors.grey),
+              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7)),
             ),
           ),
           Expanded(

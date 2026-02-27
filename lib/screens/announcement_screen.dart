@@ -34,13 +34,13 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
           }
 
           if (provider.announcements.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                   Icon(Icons.announcement_outlined, size: 64, color: Colors.grey),
-                   SizedBox(height: 16),
-                   Text('No announcements yet', style: TextStyle(color: Colors.grey)),
+                   Icon(Icons.announcement_outlined, size: 64, color: Theme.of(context).disabledColor),
+                   const SizedBox(height: 16),
+                   Text('No announcements yet', style: TextStyle(color: Theme.of(context).disabledColor)),
                 ],
               ),
             );
@@ -91,7 +91,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
                         const SizedBox(height: 8),
                         Text(
                           DateFormat('MMM dd, yyyy • hh:mm a').format(announcement.date),
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7), fontSize: 12),
                         ),
                         const Divider(height: 24),
                         Text(

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/subject.dart';
-import '../constants.dart';
 import '../providers/target_provider.dart';
 import '../providers/timetable_provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math' as math;
-import '../providers/attendance_provider.dart';
 
 /// Overall Attendance Detail Screen
 /// Shows day-level bunk/attend calculator with per-subject projected percentages.
@@ -333,7 +331,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
             Text(
               'After ${_attendMode ? "attending" : "skipping"} $_days day${_days == 1 ? "" : "s"}',
               style: theme.textTheme.bodySmall
-                  ?.copyWith(color: Colors.grey[600]),
+                  ?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.6)),
             ),
             const SizedBox(height: 10),
             _buildProjectionTable(sortedSubjects, theme),
@@ -361,7 +359,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
         ),
         Text(
           title,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6)),
         ),
       ],
     );
@@ -371,7 +369,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
     return Container(
       width: 1,
       height: 50,
-      color: Colors.grey[300],
+      color: Theme.of(context).dividerColor,
       margin: const EdgeInsets.symmetric(horizontal: 10),
     );
   }
@@ -620,7 +618,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
                     children: [
                       Text('Overall after $_days day${_days == 1 ? "" : "s"}',
                           style: TextStyle(
-                              color: Colors.grey[600], fontSize: 12)),
+                              color: theme.textTheme.bodySmall?.color?.withOpacity(0.6), fontSize: 12)),
                       Text(
                         '${projectedPct.toStringAsFixed(1)}%',
                         style: TextStyle(
@@ -634,7 +632,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('Change', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                      Text('Change', style: TextStyle(color: theme.textTheme.bodySmall?.color?.withOpacity(0.6), fontSize: 12)),
                       Text(
                         deltaStr,
                         style: TextStyle(
@@ -712,7 +710,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
                     ? null
                     : Border(
                         bottom: BorderSide(
-                            color: Colors.grey.withOpacity(0.15))),
+                            color: theme.dividerColor)),
               ),
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -735,7 +733,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
                         Text(
                           '${s.classesAttended}/${s.totalClasses}',
                           style: TextStyle(
-                              fontSize: 10, color: Colors.grey[500]),
+                              fontSize: 10, color: theme.textTheme.bodySmall?.color?.withOpacity(0.6)),
                         ),
                       ],
                     ),
@@ -775,7 +773,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
                               ? Colors.green
                               : delta < -0.05
                                   ? Colors.red
-                                  : Colors.grey,
+                                  : theme.dividerColor,
                         ),
                         const SizedBox(width: 2),
                         Text(

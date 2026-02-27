@@ -479,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Text(
                     isGoing ? "Notifications enabled" : "Notifications muted",
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6)),
                   ),
                 ],
               ),
@@ -501,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   await NotificationService().cancelAll();
                 }
               },
-              activeColor: Colors.deepPurple,
+              activeThumbColor: Colors.deepPurple,
             ),
           ],
         ),
@@ -625,7 +625,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 4),
                       Text(
                         '${tip['label']} • ${tip['time']}',
-                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                        style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6)),
                       ),
                     ],
                   ),
@@ -708,7 +708,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       'Code: ${subject.subjectCode}',
                       style: TextStyle(
-                        color: Colors.grey[600],
+                        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
                         fontSize: 12,
                       ),
                     ),
@@ -738,7 +738,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         ' / ${subject.totalClasses}',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -768,9 +768,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SizedBox(width: 8),
-              const Icon(
+              Icon(
                 Icons.chevron_right,
-                color: Colors.grey,
+                color: Theme.of(context).dividerColor,
               ),
             ],
           ),

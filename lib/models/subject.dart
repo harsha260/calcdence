@@ -20,33 +20,36 @@ class Subject {
 
   /// Create from API JSON response
   factory Subject.fromJson(Map<String, dynamic> json) {
-    int _toInt(dynamic val) {
+    int toInt(dynamic val) {
       if (val is int) return val;
       if (val is String) return int.tryParse(val) ?? 0;
       if (val is double) return val.toInt();
       return 0;
     }
 
-    double _toDouble(dynamic val) {
+    double toDouble(dynamic val) {
       if (val is double) return val;
       if (val is int) return val.toDouble();
       if (val is String) return double.tryParse(val) ?? 0.0;
       return 0.0;
     }
 
-    final code = _toInt(json['subjectCode'] ?? json['subject_code']);
+    // For Anits/CampX, 'id' is the unique integer we use for matching
+    final rawCode = json['id'] ?? json['subjectCode'] ?? json['subject_code'] ?? json['courseId'] ?? 0;
+    final code = toInt(rawCode);
 
     // Prefer our hardcoded name; fall back to API name or code
-    final resolvedName = json['subjectName']?.toString() ??
+    final resolvedName = AppConstants.subjectNames[code] ??
+        json['name']?.toString() ??
+        json['subjectName']?.toString() ??
         json['subject_name']?.toString() ??
-        AppConstants.subjectNames[code] ??
         'Subject $code';
 
-    final attended = _toInt(json['attended'] ?? json['present'] ?? json['subject_attended_count']);
-    final total = _toInt(json['total'] ?? json['totalClasses'] ?? json['subject_total_count']);
+    final attended = toInt(json['attended'] ?? json['present'] ?? json['subject_attended_count']);
+    final total = toInt(json['total'] ?? json['totalClasses'] ?? json['subject_total_count']);
     
     // Calculate percentage if not provided or 0.0
-    double percentage = _toDouble(json['percentage']);
+    double percentage = toDouble(json['percentage']);
     if (percentage == 0.0 && total > 0) {
       percentage = (attended / total) * 100;
     }

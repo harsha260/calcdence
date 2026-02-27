@@ -109,7 +109,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               children: [
                 Text(
                   'P${entry.period}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -127,7 +127,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     color: entry.isAttended! ? Colors.green : Colors.red,
                   )
                 else if (isPast)
-                  const Icon(Icons.help_outline, color: Colors.grey),
+                  Icon(Icons.help_outline, color: Theme.of(context).disabledColor),
                 const SizedBox(width: 8),
                 const Icon(Icons.chevron_right),
               ],
@@ -159,7 +159,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               const SizedBox(height: 8),
               Text(
                 'Period ${entry.period} • ${entry.startTime} - ${entry.endTime}',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6)),
               ),
               const Divider(height: 32),
               const Text(
@@ -172,7 +172,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 style: TextStyle(
                   fontSize: 15,
                   fontStyle: entry.topic == null ? FontStyle.italic : FontStyle.normal,
-                  color: entry.topic == null ? Colors.grey : Colors.black87,
+                  color: entry.topic == null ? Theme.of(context).disabledColor : null,
                 ),
               ),
               const SizedBox(height: 24),

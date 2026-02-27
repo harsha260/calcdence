@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../constants.dart';
 import 'home_screen.dart';
 
 /// Login Screen - User authentication interface
@@ -70,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'CampX Attendance',
+                    AppConstants.appName,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -82,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Track your attendance easily',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
                         ),
                   ),
                   const SizedBox(height: 48),
@@ -97,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Theme.of(context).cardColor,
                     ),
                     keyboardType: TextInputType.text,
                     textInputAction: TextInputAction.next,
@@ -132,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Theme.of(context).cardColor,
                     ),
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
@@ -185,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Use your CampX credentials to login',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[500],
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
                         ),
                   ),
                 ],

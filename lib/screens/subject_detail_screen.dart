@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/subject.dart';
-import '../constants.dart';
 import '../providers/target_provider.dart';
-import '../services/notification_service.dart';
-import '../models/timetable_entry.dart';
-import '../providers/attendance_provider.dart';
 import '../providers/timetable_provider.dart';
 
 /// Subject Detail Screen - Shows detailed stats and calculators
@@ -196,7 +192,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                 Container(
                   height: 40,
                   width: 1,
-                  color: Colors.grey[300],
+                  color: Theme.of(context).dividerColor,
                 ),
                 _buildStatItem(
                   'Total Classes',
@@ -207,7 +203,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                 Container(
                   height: 40,
                   width: 1,
-                  color: Colors.grey[300],
+                  color: Theme.of(context).dividerColor,
                 ),
                 _buildStatItem(
                   'Classes Missed',
@@ -239,7 +235,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.grey[600],
+            color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
             fontSize: 10,
           ),
         ),
@@ -430,7 +426,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                       Text(
                         subtitle,
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
                           fontSize: 12,
                         ),
                       ),
@@ -460,7 +456,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                   Text(
                     resultLabel,
                     style: TextStyle(
-                      color: Colors.grey[700],
+                      color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8),
                       fontSize: 12,
                     ),
                   ),
