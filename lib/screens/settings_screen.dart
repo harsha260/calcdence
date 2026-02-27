@@ -356,7 +356,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Update Check'),
-              content: Text('Latest Version: $latestVersion\nCurrent Version: 0.3'),
+              content: Text('Latest Version: $latestVersion\nCurrent Version: 0.4'),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
               ],
