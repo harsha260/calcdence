@@ -6,6 +6,7 @@ import '../providers/target_provider.dart';
 import '../services/notification_service.dart';
 import '../models/timetable_entry.dart';
 import '../providers/attendance_provider.dart';
+import '../providers/timetable_provider.dart';
 
 /// Subject Detail Screen - Shows detailed stats and calculators
 class SubjectDetailScreen extends StatefulWidget {
@@ -41,25 +42,53 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
 
   void _calculateResults() {
     final subject = widget.subject;
-    final P = subject.classesAttended;
-    final T = subject.totalClasses;
-    final R = _target / 100; // Use _target (0-100) converted to (0-1)
-
-    // Bunk Calculator: x = floor((P - (R * T)) / R)
-    if (P > R * T) {
-      _bunkableClasses = ((P - (R * T)) / R).floor();
-      if (_bunkableClasses! < 0) _bunkableClasses = 0;
-    } else {
-      _bunkableClasses = 0;
+    final targetPct = _target;
+    final tt = context.read<TimetableProvider>();
+    
+    // 1. Bunk Calculator (True Projection)
+    // How many upcoming classes can we skip before falling below target?
+    int possibleBunks = 0;
+    int currentAttendedB = subject.classesAttended;
+    int currentConductedB = subject.totalClasses;
+    
+    // Scan up to 90 days ahead
+    for (int day = 1; day <= 90; day++) {
+      final date = DateTime.now().add(Duration(days: day));
+      final classes = tt.periodsForDate(date).where((e) => e.subjectId == subject.subjectCode).length;
+      
+      for (int i = 0; i < classes; i++) {
+        currentConductedB++;
+        if ((currentAttendedB / currentConductedB * 100) >= targetPct) {
+          possibleBunks++;
+        } else {
+          break;
+        }
+      }
+      if ((currentAttendedB / currentConductedB * 100) < targetPct) break;
     }
+    _bunkableClasses = possibleBunks;
 
-    // Recovery Calculator: x = ceil((R * T - P) / (1 - R))
-    if (R * T > P) {
-      _recoveryClasses = ((R * T - P) / (1 - R)).ceil();
-      if (_recoveryClasses! < 0) _recoveryClasses = 0;
-    } else {
-      _recoveryClasses = 0;
+    // 2. Recovery Calculator (True Projection)
+    // How many upcoming classes must we attend to reach target?
+    int currentAttendedR = subject.classesAttended;
+    int currentConductedR = subject.totalClasses;
+    int needed = 0;
+    
+    if ((currentAttendedR / currentConductedR * 100) < targetPct) {
+      for (int day = 1; day <= 90; day++) {
+        final date = DateTime.now().add(Duration(days: day));
+        final classes = tt.periodsForDate(date).where((e) => e.subjectId == subject.subjectCode).length;
+        
+        for (int i = 0; i < classes; i++) {
+          needed++;
+          currentAttendedR++;
+          currentConductedR++;
+          if ((currentAttendedR / currentConductedR * 100) >= targetPct) break;
+        }
+        if ((currentAttendedR / currentConductedR * 100) >= targetPct) break;
+      }
     }
+    _recoveryClasses = needed;
   }
 
   void _onTargetChanged(String value) {

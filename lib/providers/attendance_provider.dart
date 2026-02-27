@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../constants.dart';
 import '../models/attendance.dart';
 import '../models/subject.dart';
+import '../models/timetable_entry.dart';
 import '../services/api_service.dart' as api;
 import 'dart:math' as math;
 
@@ -21,6 +22,7 @@ class AttendanceProvider extends ChangeNotifier {
   Attendance? _attendance;
   String? _errorMessage;
   Map<int, String> _nameMap = {};
+  List<TimetableEntry> _allSessions = [];
 
   // The semester to fetch subjects for
   static const int _semNo = 4;
@@ -33,6 +35,7 @@ class AttendanceProvider extends ChangeNotifier {
   Attendance? get attendance => _attendance;
   String? get errorMessage => _errorMessage;
   Map<int, String> get nameMap => _nameMap;
+  List<TimetableEntry> get allSessions => _allSessions;
   bool get isLoading => _state == AttendanceState.loading;
   bool get hasData => _attendance != null && _attendance!.subjects.isNotEmpty;
 
@@ -87,17 +90,40 @@ class AttendanceProvider extends ChangeNotifier {
 
       // ── Step 2: fetch attendance per subject ─────────────────────────
       final subjects = <Subject>[];
+      final List<TimetableEntry> allSessions = [];
 
       for (final id in attendanceIds) {
         try {
           print('AttendanceProvider: Fetching attendance for subject code: $id');
           final data = await _apiService.getSubjectAttendance(id);
-          print('AttendanceProvider: Received data for $id: $data');
-          // Inject name from the subjects API (code is already injected by api_service)
+          
+          // Inject name from the subjects API
           data['subjectName'] = nameMap[id] ?? 'Subject $id';
           final subject = Subject.fromJson(data);
-          print('AttendanceProvider: Parsed subject: ${subject.subjectName}, Total: ${subject.totalClasses}');
-          // Only include subjects that have at least 1 conducted class
+          
+          // EXTRACT SESSIONS: Look for logs in the response
+          final rawLogs = data['timeline'] ??
+                         data['attendanceLogs'] ?? 
+                         data['sessionList'] ?? 
+                         data['attendance_logs'] ?? 
+                         data['data'];
+          
+          if (rawLogs is List) {
+            for (var log in rawLogs) {
+              if (log is Map) {
+                // Ensure the log has subject info
+                final logMap = Map<String, dynamic>.from(log);
+                logMap['subjectId'] = id;
+                logMap['subjectName'] = subject.subjectName;
+                
+                final entry = TimetableEntry.fromJson(logMap, nameMap: nameMap);
+                if (entry.sessionDate != null) {
+                  allSessions.add(entry);
+                }
+              }
+            }
+          }
+
           if (subject.totalClasses > 0) {
             subjects.add(subject);
           }
@@ -124,15 +150,8 @@ class AttendanceProvider extends ChangeNotifier {
         totalConducted: totalConducted,
       );
 
-      // ── Step 3: timetable API ───────────────────────────────────────
-      // We pass the nameMap to the TimetableProvider so it can resolve subject names
-      // using the same names we just fetched.
-      // ignore: use_build_context_synchronously
-      // context.read<TimetableProvider>().fetchTimetable(nameMap: nameMap);
-      // Wait, we don't have context here. We'll handle this from the UI side or
-      // pass the provider in. For now, we'll expose the nameMap.
       _nameMap = nameMap;
-
+      _allSessions = allSessions; // Store for TimetableProvider to pick up
       _state = AttendanceState.loaded;
     } catch (e) {
       _errorMessage = e.toString();

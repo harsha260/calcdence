@@ -331,4 +331,45 @@ class CampXApiService {
   void logout() {
     _sessionKey = null;
   }
+
+  /// Fetch announcements from the real CampX API
+  Future<List<Map<String, dynamic>>> getAnnouncements({int limit = 10, int skip = 0}) async {
+    if (_sessionKey == null) {
+      throw ApiException('Not authenticated. Please login first.');
+    }
+
+    try {
+      final uri = Uri.parse('${ApiConstants.baseUrl}/student-api/feed/announcement?limit=$limit&skip=$skip&feedType=announcements');
+      
+      final headers = _buildAuthHeaders();
+      headers['Cookie'] = _buildCookieString();
+
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(AppConstants.connectionTimeout);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+        } else if (decoded is Map && decoded.containsKey('data')) {
+           final data = decoded['data'];
+           if (data is List) {
+             return data.map((e) => Map<String, dynamic>.from(e)).toList();
+           }
+        }
+        return [];
+      } else if (response.statusCode == 401) {
+        throw ApiException('Session expired. Please login again.', statusCode: 401);
+      } else {
+        throw ApiException(
+          'Failed to fetch announcements: ${response.body}',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error fetching announcements: $e');
+    }
+  }
 }

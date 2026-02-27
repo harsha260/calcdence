@@ -30,7 +30,7 @@ class OverallDetailScreen extends StatefulWidget {
 }
 
 class _OverallDetailScreenState extends State<OverallDetailScreen> {
-  double _periodsPerDay = 6.0;
+  // No longer using fixed averages
 
   bool _attendMode = true; // true = "I will attend N days", false = "I will skip N days"
   int _days = 1;
@@ -38,26 +38,20 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
   // Estimated number of school days conducted so far
   late final double _totalDays;
 
-  double _getDynamicPeriodsPerDay(BuildContext context) {
-    final tt = context.read<TimetableProvider>();
-    if (tt.isLoaded && tt.entries.isNotEmpty) {
-      return tt.entries.length / 5.0;
-    }
-    return 6.0; // Fallback
-  }
+  // Removed _getDynamicPeriodsPerDay as we use true iteration
 
   @override
   void initState() {
     super.initState();
     
-    // Initial value
+    // Initial value setup
     final tt = context.read<TimetableProvider>();
-    _periodsPerDay = (tt.isLoaded && tt.entries.isNotEmpty) 
+    final avgPpd = (tt.isLoaded && tt.entries.isNotEmpty) 
         ? tt.entries.length / 5.0 
         : 6.0;
 
     _totalDays = widget.conducted > 0
-        ? widget.conducted / _periodsPerDay
+        ? widget.conducted / avgPpd
         : 1.0;
     
     // Automatically set mode and days based on target
@@ -82,41 +76,56 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
 
   int _calculateRequiredDays(double targetPct) {
     final t = targetPct / 100.0;
-    if (t >= 1.0) return 30; // Cannot reach 100% if already missed any
+    if (t >= 1.0) return 30;
+
+    final tt = context.read<TimetableProvider>();
+    int currentAttended = widget.attended;
+    int currentConducted = widget.conducted;
     
-    // Formula: n >= (TC - A) / (P(1 - T))
-    final numerator = (t * widget.conducted) - widget.attended;
-    final denominator = _periodsPerDay * (1.0 - t);
-    
-    if (denominator <= 0) return 1;
-    final n = (numerator / denominator).ceil();
-    return n.clamp(1, 30);
+    for (int day = 1; day <= 60; day++) { // Scan up to 60 days
+      final date = DateTime.now().add(Duration(days: day));
+      final periods = tt.periodsForDate(date).length;
+      if (periods == 0) continue;
+
+      currentAttended += periods;
+      currentConducted += periods;
+      if ((currentAttended / currentConducted * 100) >= targetPct) return day;
+    }
+    return 30;
   }
 
   int _calculateSkipDays(double targetPct) {
     final t = targetPct / 100.0;
     if (t <= 0) return 30;
+
+    final tt = context.read<TimetableProvider>();
+    int currentAttended = widget.attended;
+    int currentConducted = widget.conducted;
     
-    // Formula: n <= (A - TC) / TP
-    final numerator = widget.attended - (t * widget.conducted);
-    final denominator = t * _periodsPerDay;
-    
-    if (denominator <= 0) return 1;
-    final n = (numerator / denominator).floor();
-    return n.clamp(1, 30);
+    for (int day = 1; day <= 60; day++) {
+      final date = DateTime.now().add(Duration(days: day));
+      final periods = tt.periodsForDate(date).length;
+      if (periods == 0) continue;
+
+      currentConducted += periods;
+      if ((currentAttended / currentConducted * 100) < targetPct) return day - 1;
+    }
+    return 30;
   }
 
-  /// For a given subject, how many periods happen on average per day
-  double _periodsPerDayFor(Subject s) {
-    // Try to get dynamic value from TimetableProvider for better accuracy
+  /// Get exact class counts for the next N days
+  Map<int, int> _getUpcomingCounts(int days) {
     final tt = context.read<TimetableProvider>();
-    if (tt.isLoaded) {
-      final ppd = tt.periodsPerDayForSubject(s.subjectCode);
-      if (ppd > 0) return ppd;
+    final counts = <int, int>{};
+    final now = DateTime.now();
+    for (int i = 1; i <= days; i++) {
+      final date = now.add(Duration(days: i));
+      final periods = tt.periodsForDate(date);
+      for (var p in periods) {
+        counts[p.subjectId] = (counts[p.subjectId] ?? 0) + 1;
+      }
     }
-    // Fallback to estimate
-    if (_totalDays <= 0) return 1.0;
-    return s.totalClasses / _totalDays;
+    return counts;
   }
 
   Widget _buildCharts(List<Subject> subjects) {
@@ -210,7 +219,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
           child: LineChart(
             LineChartData(
               maxY: 100,
-              minY: 0,
+              minY: math.max(0.0, widget.percentage - 30.0),
               titlesData: const FlTitlesData(
                 rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -250,28 +259,30 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
   }
   /// Projected percentage for a subject after _days attend/skip
   double _projected(Subject s) {
-    final ppd = _periodsPerDayFor(s);
-    final additional = (ppd * _days).round();
+    final upcoming = _getUpcomingCounts(_days);
+    final count = upcoming[s.subjectCode] ?? 0;
+    
     if (_attendMode) {
-      final newAtt = s.classesAttended + additional;
-      final newTot = s.totalClasses + additional;
+      final newAtt = s.classesAttended + count;
+      final newTot = s.totalClasses + count;
       return newTot > 0 ? (newAtt / newTot * 100) : s.percentage;
     } else {
-      // Skip: attended unchanged, total grows
-      final newTot = s.totalClasses + additional;
+      final newTot = s.totalClasses + count;
       return newTot > 0 ? (s.classesAttended / newTot * 100) : s.percentage;
     }
   }
 
   /// Overall projected percentage after _days attend/skip
   double _projectedOverall() {
-    final added = _days * _periodsPerDay;
+    final upcoming = _getUpcomingCounts(_days);
+    final totalAdded = upcoming.values.fold(0, (a, b) => a + b);
+    
     if (_attendMode) {
-      final newAtt = widget.attended + added;
-      final newTot = widget.conducted + added;
+      final newAtt = widget.attended + totalAdded;
+      final newTot = widget.conducted + totalAdded;
       return newTot > 0 ? (newAtt / newTot * 100) : widget.percentage;
     } else {
-      final newTot = widget.conducted + added;
+      final newTot = widget.conducted + totalAdded;
       return newTot > 0 ? (widget.attended / newTot * 100) : widget.percentage;
     }
   }
@@ -431,7 +442,7 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                '≈ ${_totalDays.toStringAsFixed(0)} school days so far  •  $_periodsPerDay periods/day',
+                '≈ ${_totalDays.toStringAsFixed(0)} school days so far',
                 style: TextStyle(
                     color: Colors.deepPurple[700], fontSize: 12),
               ),

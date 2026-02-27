@@ -96,6 +96,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
       itemCount: events.length,
       itemBuilder: (context, index) {
         final entry = events[index];
+        final now = DateTime.now();
+        final sessionDate = entry.sessionDate != null ? DateTime.parse(entry.sessionDate!) : now;
+        final startDt = entry.startDateTime(sessionDate);
+        final isPast = startDt.isBefore(now);
+        
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
@@ -113,10 +118,83 @@ class _CalendarScreenState extends State<CalendarScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text('${entry.startTime} - ${entry.endTime}'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // Future idea: show subject detail from here
-            },
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (entry.isAttended != null)
+                  Icon(
+                    entry.isAttended! ? Icons.check_circle : Icons.cancel,
+                    color: entry.isAttended! ? Colors.green : Colors.red,
+                  )
+                else if (isPast)
+                  const Icon(Icons.help_outline, color: Colors.grey),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+            onTap: () => _showSessionDetails(entry),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSessionDetails(TimetableEntry entry) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                entry.subjectName,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Period ${entry.period} • ${entry.startTime} - ${entry.endTime}',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              const Divider(height: 32),
+              const Text(
+                'Session Topic',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                entry.topic ?? 'No topic recorded for this session.',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontStyle: entry.topic == null ? FontStyle.italic : FontStyle.normal,
+                  color: entry.topic == null ? Colors.grey : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 24),
+              if (entry.isAttended != null)
+                Row(
+                  children: [
+                    Icon(
+                      entry.isAttended! ? Icons.check_circle : Icons.cancel,
+                      color: entry.isAttended! ? Colors.green : Colors.red,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      entry.isAttended! ? 'You attended this class' : 'You missed this class',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: entry.isAttended! ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 16),
+            ],
           ),
         );
       },

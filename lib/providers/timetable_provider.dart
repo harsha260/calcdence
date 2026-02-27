@@ -11,12 +11,19 @@ class TimetableProvider extends ChangeNotifier {
   TimetableState _state = TimetableState.initial;
   List<TimetableEntry> _templateEntries = [];
   List<TimetableEntry> _specificEntries = [];
+  final Set<String> _holidays = {}; // Stores dates as "YYYY-MM-DD"
   String? _errorMessage;
 
   TimetableState get state => _state;
   String? get errorMessage => _errorMessage;
   bool get isLoaded => _state == TimetableState.loaded;
-  List<TimetableEntry> get entries => _templateEntries; // Return template by default for backward compatibility
+  List<TimetableEntry> get entries => _templateEntries; 
+  Set<String> get holidayDates => _holidays;
+
+  bool isHoliday(DateTime date) {
+    final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    return _holidays.contains(dateStr) || date.weekday == DateTime.sunday;
+  }
 
   /// All periods for a given weekday (1=Mon…5=Fri), sorted by start time.
   List<TimetableEntry> periodsForWeekday(int weekday) => _templateEntries
@@ -36,12 +43,17 @@ class TimetableProvider extends ChangeNotifier {
   /// Periods on a specific date.
   /// Prioritizes specific date entries from API, falls back to template.
   List<TimetableEntry> periodsForDate(DateTime date) {
-    // 1. Check if we have specific entries for this exact date (e.g. "2026-02-25")
     final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    
+    // 0. Check holiday
+    if (isHoliday(date)) {
+      return [];
+    }
+
+    // 1. Check if we have specific entries for this exact date
     final specific = _specificEntries.where((e) => e.sessionDate == dateStr).toList();
     
     if (specific.isNotEmpty) {
-      print('TimetableProvider: Found ${specific.length} specific entries for $dateStr');
       // Sort by startTime with padding
       return specific..sort((a, b) {
         final aTime = a.startTime.padLeft(5, '0');
@@ -85,10 +97,46 @@ class TimetableProvider extends ChangeNotifier {
       print('TimetableProvider: Fetching dynamic timetable from API...');
       final rawApiEntries = await _apiService.getTimetable();
       
-      _specificEntries = rawApiEntries
-          .map((json) => TimetableEntry.fromJson(json, nameMap: nameMap))
-          .where((e) => e.sessionDate != null)
-          .toList();
+      final processedSpecific = <TimetableEntry>[];
+      final datesWithClasses = <String>{};
+
+      for (var json in rawApiEntries) {
+        final entry = TimetableEntry.fromJson(json, nameMap: nameMap);
+        final sessionDate = entry.sessionDate;
+        
+        if (sessionDate != null) {
+          final subjectLower = entry.subjectName.toLowerCase();
+          final statusLower = (json['attendanceStatus'] ?? '').toString().toLowerCase();
+          
+          if (subjectLower.contains('holiday') || statusLower.contains('holiday')) {
+            _holidays.add(sessionDate);
+          } else {
+            datesWithClasses.add(sessionDate);
+            _splitPeriodIfNeeded(entry, processedSpecific, () => processedSpecific.length + 1000);
+          }
+        }
+      }
+
+      _specificEntries = processedSpecific;
+
+      // Scan empty dates between first and last date in response
+      if (datesWithClasses.isNotEmpty) {
+        final dates = datesWithClasses.map((d) => DateTime.parse(d)).toList()..sort();
+        final first = dates.first;
+        final last = dates.last;
+        
+        for (int i = 0; i <= last.difference(first).inDays; i++) {
+          final date = first.add(Duration(days: i));
+          final dStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+          
+          if (!datesWithClasses.contains(dStr) && date.weekday != DateTime.sunday) {
+            // If it has periods in template but 0 in API, it's a holiday
+            if (periodsForWeekday(date.weekday).isNotEmpty) {
+              _holidays.add(dStr);
+            }
+          }
+        }
+      }
       
       print('TimetableProvider: Loaded ${_templateEntries.length} template entries and ${_specificEntries.length} specific date overrides.');
       
@@ -106,21 +154,47 @@ class TimetableProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Add or update specific session entries (e.g. from subject logs)
+  void updateSpecificEntries(List<TimetableEntry> sessions) {
+    if (sessions.isEmpty) return;
+    
+    // Create a map for quick lookup and deduplication by date + period
+    final Map<String, TimetableEntry> entryMap = {
+      for (var e in _specificEntries) 
+        if (e.sessionDate != null) "${e.sessionDate}_${e.period}": e
+    };
+
+    for (var s in sessions) {
+      if (s.sessionDate == null) continue;
+      final key = "${s.sessionDate}_${s.period}";
+      
+      // Update or add
+      if (!entryMap.containsKey(key) || s.isAttended != null) {
+        entryMap[key] = s;
+      }
+    }
+
+    _specificEntries = entryMap.values.toList();
+    notifyListeners();
+  }
+
   List<TimetableEntry> _getHardcodedTimetable(Map<int, String> nameMap) {
     final entries = <TimetableEntry>[];
     int nextId = 1;
 
-    void add(String day, int period, int subjectId, String startTime, String endTime) {
+    void add(String day, int startPeriod, int subjectId, String start, String end) {
       final name = nameMap[subjectId] ?? (subjectId == 0 ? 'Holiday' : 'Subject $subjectId');
-      entries.add(TimetableEntry(
+      final entry = TimetableEntry(
         id: nextId++,
         day: day,
-        period: period,
+        period: startPeriod,
         subjectId: subjectId,
         subjectName: name,
-        startTime: startTime,
-        endTime: endTime,
-      ));
+        startTime: start,
+        endTime: end,
+      );
+      
+      _splitPeriodIfNeeded(entry, entries, () => nextId++);
     }
 
     // Monday
@@ -162,5 +236,39 @@ class TimetableProvider extends ChangeNotifier {
     add('FRIDAY', 5, 1344, '13:00', '15:30'); // PP LAB (Using 1344 for Lab context)
 
     return entries;
+  }
+
+  void _splitPeriodIfNeeded(TimetableEntry entry, List<TimetableEntry> destination, int Function() idGenerator) {
+    final sParts = entry.startTime.split(':');
+    final eParts = entry.endTime.split(':');
+    if (sParts.length >= 2 && eParts.length >= 2) {
+      final startMin = int.parse(sParts[0]) * 60 + int.parse(sParts[1]);
+      final endMin = int.parse(eParts[0]) * 60 + int.parse(eParts[1]);
+      final duration = endMin - startMin;
+
+      // If duration is roughly 100 mins (90-110), split into two
+      if (duration >= 90 && duration <= 110) {
+        final midMin = startMin + 50;
+        final midTime = "${(midMin ~/ 60).toString().padLeft(2, '0')}:${(midMin % 60).toString().padLeft(2, '0')}";
+
+        destination.add(entry.copyWith(id: idGenerator(), endTime: midTime));
+        destination.add(entry.copyWith(id: idGenerator(), period: entry.period + 1, startTime: midTime));
+        return;
+      }
+
+      // If duration is roughly 150 mins (140-160), split into three
+      if (duration >= 140 && duration <= 160) {
+        final p1EndMin = startMin + 50;
+        final p2EndMin = startMin + 100;
+        final p1End = "${(p1EndMin ~/ 60).toString().padLeft(2, '0')}:${(p1EndMin % 60).toString().padLeft(2, '0')}";
+        final p2End = "${(p2EndMin ~/ 60).toString().padLeft(2, '0')}:${(p2EndMin % 60).toString().padLeft(2, '0')}";
+
+        destination.add(entry.copyWith(id: idGenerator(), endTime: p1End));
+        destination.add(entry.copyWith(id: idGenerator(), period: entry.period + 1, startTime: p1End, endTime: p2End));
+        destination.add(entry.copyWith(id: idGenerator(), period: entry.period + 2, startTime: p2End));
+        return;
+      }
+    }
+    destination.add(entry);
   }
 }

@@ -8,6 +8,8 @@ class TimetableEntry {
   final String startTime; // e.g. "09:00"
   final String endTime;   // e.g. "09:50"
   final String? sessionDate; // e.g. "2026-02-25" (ISO format)
+  final bool? isAttended;    // true=✅, false=❌, null=Upcoming/Unknown
+  final String? topic;       // Session topic from portal
 
   const TimetableEntry({
     required this.id,
@@ -18,6 +20,8 @@ class TimetableEntry {
     required this.startTime,
     required this.endTime,
     this.sessionDate,
+    this.isAttended,
+    this.topic,
   });
 
   /// Parse from raw API map.
@@ -99,20 +103,56 @@ class TimetableEntry {
         (apiName.isNotEmpty ? apiName : 'Subject $subjectId');
 
     // Times — try multiple field names
-    final startTime = (json['startTime'] ??
+    String startTime = (json['startTime'] ??
         json['start_time'] ??
         json['fromTime'] ??
         (period > 0 ? _periodToTime(period, isStart: true) : '08:50')).toString();
-    final endTime = (json['endTime'] ??
+    String endTime = (json['endTime'] ??
         json['end_time'] ??
         json['toTime'] ??
         (period > 0 ? _periodToTime(period, isStart: false) : '09:40')).toString();
+
+    // Map timeline fields to our model
+    if (json.containsKey('orderNumber')) {
+      period = (json['orderNumber'] is int) ? json['orderNumber'] : int.tryParse(json['orderNumber'].toString()) ?? 1;
+    }
+    if (json.containsKey('fromTime')) startTime = json['fromTime'].toString().substring(0, 5);
+    if (json.containsKey('toTime')) endTime = json['toTime'].toString().substring(0, 5);
 
     // If period is missing or 0, try to deduce it from startTime
     if (period <= 1) {
       final deduced = _startTimeToPeriod(startTime);
       if (deduced > 0) period = deduced;
     }
+
+    // Attendance and Topic
+    final rawAtt = json['status'] ?? 
+                 json['isAttended'] ?? 
+                 json['present'] ?? 
+                 json['attendanceStatus'] ?? 
+                 json['attendance_status'] ??
+                 json['isPresent'] ??
+                 json['attended'];
+    bool? attended;
+    if (rawAtt != null) {
+      if (rawAtt is bool) {
+        attended = rawAtt;
+      } else {
+        final s = rawAtt.toString().toLowerCase();
+        if (s == 'present' || s == '1' || s == 'true' || s == 'p') {
+          attended = true;
+        } else if (s == 'absent' || s == '0' || s == 'false' || s == 'a') {
+          attended = false;
+        }
+      }
+    }
+
+    // Handle topics list from timeline
+    dynamic rawTopic = json['topic'] ?? json['sessionTopic'] ?? json['content_covered'];
+    if (rawTopic == null && json['topics'] is List) {
+      rawTopic = (json['topics'] as List).join(', ');
+    }
+    final topic = rawTopic?.toString();
 
     return TimetableEntry(
       id: id,
@@ -123,6 +163,8 @@ class TimetableEntry {
       startTime: startTime,
       endTime: endTime,
       sessionDate: formattedSessionDate,
+      isAttended: attended,
+      topic: topic?.toString(),
     );
   }
 
@@ -199,6 +241,32 @@ class TimetableEntry {
       'THURSDAY': 4, 'FRIDAY': 5, 'SATURDAY': 6, 'SUNDAY': 7,
     };
     return map[day] ?? 1;
+  }
+
+  TimetableEntry copyWith({
+    int? id,
+    String? day,
+    int? period,
+    int? subjectId,
+    String? subjectName,
+    String? startTime,
+    String? endTime,
+    String? sessionDate,
+    bool? isAttended,
+    String? topic,
+  }) {
+    return TimetableEntry(
+      id: id ?? this.id,
+      day: day ?? this.day,
+      period: period ?? this.period,
+      subjectId: subjectId ?? this.subjectId,
+      subjectName: subjectName ?? this.subjectName,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      sessionDate: sessionDate ?? this.sessionDate,
+      isAttended: isAttended ?? this.isAttended,
+      topic: topic ?? this.topic,
+    );
   }
 
   @override

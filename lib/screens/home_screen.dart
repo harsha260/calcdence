@@ -15,6 +15,8 @@ import 'subject_detail_screen.dart';
 import 'overall_detail_screen.dart';
 import 'settings_screen.dart';
 import 'calendar_screen.dart';
+import 'announcement_screen.dart';
+import 'todo_screen.dart';
 import '../services/notification_service.dart';
 
 /// Home Screen - Attendance Dashboard
@@ -46,7 +48,11 @@ class _HomeScreenState extends State<HomeScreen> {
       print('HomeScreen: Attendance data available, fetching timetable.');
       final timetableProv = context.read<TimetableProvider>();
       await timetableProv.fetchTimetable(nameMap: attendanceProv.nameMap);
-      print('HomeScreen: Timetable fetch complete. Entries: ${timetableProv.entries.length}');
+      
+      // Sync real subject-wise session logs to the timetable
+      timetableProv.updateSpecificEntries(attendanceProv.allSessions);
+      
+      print('HomeScreen: Timetable fetch complete. Sessions synced: ${attendanceProv.allSessions.length}');
       
       // If user is going to college today, schedule notifications
       final collegeDay = context.read<CollegeDayProvider>();
@@ -110,20 +116,23 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         actions: [
-          // Dark-mode toggle
-          Consumer<ThemeProvider>(
-            builder: (context, themeProvider, _) => IconButton(
-              icon: Icon(
-                themeProvider.isDark ? Icons.light_mode : Icons.dark_mode,
-              ),
-              onPressed: themeProvider.toggle,
-              tooltip: themeProvider.isDark ? 'Light mode' : 'Dark mode',
-            ),
+          IconButton(
+            icon: const Icon(Icons.campaign),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AnnouncementScreen()),
+              );
+            },
+            tooltip: 'Announcements',
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _handleLogout,
-            tooltip: 'Logout',
+            icon: const Icon(Icons.check_circle_outline),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TodoScreen()),
+              );
+            },
+            tooltip: 'To-Do List',
           ),
           IconButton(
             icon: const Icon(Icons.calendar_month),
@@ -216,6 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         attendance.totalAttended, attendance.totalConducted),
                   ),
                 ),
+
 
                 // Bunk Recommender Card
                 SliverToBoxAdapter(
@@ -508,33 +518,52 @@ class _HomeScreenState extends State<HomeScreen> {
     if (today.isEmpty) return const SizedBox.shrink();
 
     final target = targetProv.target;
-    final tips = <Map<String, dynamic>>[];
+    final List<Map<String, dynamic>> tips = [];
+    final List<TimetableEntry> sortedToday = List.from(today)
+      ..sort((a, b) => a.startTime.padLeft(5, '0').compareTo(b.startTime.padLeft(5, '0')));
 
-    for (final period in today) {
-      final subject = attendanceProv.getSubjectByCode(period.subjectId);
-      if (subject == null) continue;
+    int i = 0;
+    while (i < sortedToday.length) {
+      final period = sortedToday[i];
+      final subjectId = period.subjectId;
+      final subject = attendanceProv.getSubjectByCode(subjectId);
+      
+      if (subject == null) {
+        i++;
+        continue;
+      }
 
-      // New Formula: (Attended / (Total + 1)) * 100 >= Target
+      // Find consecutive periods for same subject
+      int count = 1;
+      int j = i + 1;
+      while (j < sortedToday.length && sortedToday[j].subjectId == subjectId) {
+        count++;
+        j++;
+      }
+
       final p = subject.classesAttended;
       final t = subject.totalClasses;
-      final percentageIfBunked = (p / (t + 1)) * 100;
+      final percentageIfBunked = (p / (t + count)) * 100;
       final isSafe = percentageIfBunked >= target;
-      
-      // Calculate surplus for display (relative to target)
       final currentSurplus = subject.percentage - target;
+
+      String periodLabel = 'Period ${period.period}';
+      if (count > 1) {
+        periodLabel = 'Periods ${period.period}-${sortedToday[j-1].period}';
+      }
 
       tips.add({
         'name': subject.subjectName,
         'currentSurplus': currentSurplus,
         'isSafe': isSafe,
         'pctIfBunked': percentageIfBunked,
-        'period': period.period,
+        'label': periodLabel,
         'time': period.startTime,
+        'count': count,
       });
-    }
 
-    // Sort by startTime (padded for correct string sorting)
-    tips.sort((a, b) => (a['time'] as String).padLeft(5, '0').compareTo((b['time'] as String).padLeft(5, '0')));
+      i = j;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,7 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         SizedBox(
-          height: 100,
+          height: 110,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -555,7 +584,6 @@ class _HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context, index) {
               final tip = tips[index];
               final isSafe = tip['isSafe'] as bool;
-              final currentSurplus = tip['currentSurplus'] as double;
               final percentageIfBunked = tip['pctIfBunked'] as double;
 
               return Card(
@@ -596,7 +624,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Period ${tip['period']} • ${tip['time']}',
+                        '${tip['label']} • ${tip['time']}',
                         style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                       ),
                     ],
@@ -746,6 +774,28 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickLinkCard(BuildContext context, {required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
+          ],
         ),
       ),
     );

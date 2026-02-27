@@ -6,8 +6,12 @@ import '../providers/target_provider.dart';
 import '../providers/timetable_provider.dart';
 import '../providers/college_day_provider.dart';
 import '../providers/notification_provider.dart';
+import '../providers/auth_provider.dart';
 import '../services/notification_service.dart';
 import '../models/timetable_entry.dart';
+import 'login_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 /// Settings Screen - Debug/Configuration options
 class SettingsScreen extends StatefulWidget {
@@ -232,12 +236,107 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+
+          const SizedBox(height: 16),
+
+          // GitHub Update Checker
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.system_update, color: Colors.blue),
+              title: const Text('Check for Updates'),
+              subtitle: const Text('Check for the latest version on GitHub'),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: _checkForUpdates,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Logout Button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: ElevatedButton.icon(
+              onPressed: _handleLogout,
+              icon: const Icon(Icons.logout),
+              label: const Text('Logout'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade50,
+                foregroundColor: Colors.red,
+                side: BorderSide(color: Colors.red.shade100),
+                minimumSize: const Size(double.infinity, 50),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 32),
+          const Center(
+            child: Text(
+              'Calcdence Evolution v1.1.0',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 16),
         ],
       );
     },
   ),
 );
 }
+
+  Future<void> _checkForUpdates() async {
+    try {
+      final response = await http.get(Uri.parse('https://api.github.com/repos/harsha260/calcdence/releases/latest'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final latestVersion = data['tag_name'] ?? 'Unknown';
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Update Check'),
+              content: Text('Latest Version: $latestVersion\nCurrent Version: 1.0.0+1'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+              ],
+            ),
+          );
+        }
+      } else {
+        throw Exception('Failed to check updates');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error checking updates: $e')));
+      }
+    }
+  }
+
+  void _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await context.read<AuthProvider>().logout();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(

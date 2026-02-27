@@ -8,6 +8,8 @@ import 'providers/target_provider.dart';
 import 'providers/timetable_provider.dart';
 import 'providers/college_day_provider.dart';
 import 'providers/notification_provider.dart';
+import 'providers/announcement_provider.dart';
+import 'providers/todo_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -34,6 +36,8 @@ class CampXAttendanceApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TimetableProvider()),
         ChangeNotifierProvider(create: (_) => CollegeDayProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
+        ChangeNotifierProvider(create: (_) => TodoProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) => MaterialApp(
