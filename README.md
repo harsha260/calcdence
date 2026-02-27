@@ -32,7 +32,7 @@
 
 Ready to get started? Download the latest stable version of Calcdence directly from our GitHub releases:
 
-**[Download Latest Calcdence APK (Releases)](https://github.com/sgnanirudh/campx_attendance/releases)**
+**[Download Latest Calcdence APK (Releases)](https://github.com/harsha260/calcdence/releases)**
 
 1. Download the `.apk` file.
 2. Open the file on your Android device.
