@@ -151,6 +151,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
 
               const SizedBox(height: 16),
+
+              // Permissions Status
+              FutureBuilder<Map<String, bool>>(
+                future: NotificationService().checkPermissions(),
+                builder: (context, snapshot) {
+                  final perms = snapshot.data ?? {'notifications': true, 'exactAlarms': true};
+                  final allOk = perms['notifications']! && perms['exactAlarms']!;
+                  
+                  return Card(
+                    color: allOk ? null : Colors.orange.withOpacity(0.1),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.security, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text(
+                                'Notification Permissions',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildPermissionRow(
+                            'Notifications',
+                            perms['notifications']!,
+                            'Required to show alerts',
+                          ),
+                          _buildPermissionRow(
+                            'Exact Alarms',
+                            perms['exactAlarms']!,
+                            'Required for precise 10-min reminders',
+                          ),
+                          if (!perms['exactAlarms']!) ...[
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  await NotificationService().requestExactPermission();
+                                  setState(() {}); // Refresh
+                                },
+                                icon: const Icon(Icons.alarm_add),
+                                label: const Text('Allow Exact Alarms'),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 16),
           
           // Test Buttons
           Card(
@@ -203,15 +261,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ElevatedButton.icon(
                     onPressed: () async {
                       try {
-                        final testTime = DateTime.now().add(const Duration(seconds: 5));
+                        // Create a time 5 seconds from now
+                        final testTime = DateTime.now().add(const Duration(seconds: 10));
+                        final timeStr = '${testTime.hour.toString().padLeft(2, '0')}:${testTime.minute.toString().padLeft(2, '0')}:${testTime.second.toString().padLeft(2, '0')}';
+                        
                         await NotificationService().scheduleClassReminder(
                           entry: TimetableEntry(
                             id: 9999,
                             day: 'TODAY',
                             period: 0,
                             subjectId: 0,
-                            subjectName: 'Test Reminder',
-                            startTime: testTime.toIso8601String().substring(11, 19),
+                            subjectName: 'Test Scheduled Reminder',
+                            startTime: timeStr,
                             endTime: '',
                           ),
                           date: DateTime.now(),
@@ -219,7 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Scheduled notification in 5s (Exact)')),
+                            SnackBar(content: Text('Scheduled for $timeStr (In 10s)')),
                           );
                         }
                       } catch (e) {
@@ -231,7 +292,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }
                     },
                     icon: const Icon(Icons.timer),
-                    label: const Text('Scheduled Test (In 5s)'),
+                    label: const Text('Scheduled Test (In 10s)'),
                   ),
                 ],
               ),
@@ -272,7 +333,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 32),
           Center(
             child: Text(
-              '${AppConstants.appName} v1.1.0',
+              '${AppConstants.appName} v1.2.0-beta',
               style: const TextStyle(fontSize: 12),
             ),
           ),
@@ -295,7 +356,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Update Check'),
-              content: Text('Latest Version: $latestVersion\nCurrent Version: 1.0.0+1'),
+              content: Text('Latest Version: $latestVersion\nCurrent Version: 0.3'),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
               ],
@@ -337,6 +398,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
     }
+  }
+
+  Widget _buildPermissionRow(String label, bool status, String description) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            status ? Icons.check_circle : Icons.error_outline,
+            color: status ? Colors.green : Colors.red,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(description, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          Text(
+            status ? 'Granted' : 'Missing',
+            style: TextStyle(
+              color: status ? Colors.green : Colors.red,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildInfoRow(String label, String value) {

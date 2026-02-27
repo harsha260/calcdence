@@ -40,6 +40,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _refreshData() async {
     print('HomeScreen: _refreshData triggered');
     final attendanceProv = context.read<AttendanceProvider>();
+    final collegeDay = context.read<CollegeDayProvider>();
+    final notifProv = context.read<NotificationProvider>();
+    
+    // Load local settings first
+    await Future.wait([
+      collegeDay.loadToday(),
+      notifProv.loadSettings(),
+    ]);
+    print('HomeScreen: CollegeDay isGoingToday: ${collegeDay.isGoingToday}');
+
     await attendanceProv.fetchAttendance();
     print('HomeScreen: Attendance fetch complete. hasData: ${attendanceProv.hasData}');
     
@@ -55,10 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
       print('HomeScreen: Timetable fetch complete. Sessions synced: ${attendanceProv.allSessions.length}');
       
       // If user is going to college today, schedule notifications
-      final collegeDay = context.read<CollegeDayProvider>();
-      final notifProv = context.read<NotificationProvider>();
       if (collegeDay.isGoingToday && timetableProv.isLoaded) {
-        print('HomeScreen: User is going to college, scheduling notifications for today.');
+        print('HomeScreen: User is going to college, auto-scheduling notifications for today.');
         await NotificationService().scheduleAllForDate(
           date: DateTime.now(),
           entries: timetableProv.todayPeriods,
@@ -68,11 +76,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       print('HomeScreen: No attendance data, skipping timetable fetch.');
     }
-    
-    // Load college day status
-    print('HomeScreen: Loading college day status.');
-    // ignore: use_build_context_synchronously
-    context.read<CollegeDayProvider>().loadToday();
   }
 
   Future<void> _handleRefresh() async {

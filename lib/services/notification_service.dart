@@ -41,14 +41,40 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
     
     if (androidPlugin != null) {
-      print('NotificationService: Requesting Android permissions');
+      print('NotificationService: Requesting initial Android permissions');
       await androidPlugin.requestNotificationsPermission();
+      // Only request exact alarm permission if needed (Android 13+)
       await androidPlugin.requestExactAlarmsPermission();
     }
 
     print('NotificationService: Plugin initialized');
 
     _initialized = true;
+  }
+
+  /// Check if we have required permissions
+  Future<Map<String, bool>> checkPermissions() async {
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin == null) return {'notifications': true, 'exactAlarms': true};
+
+    final notifs = await androidPlugin.areNotificationsEnabled() ?? false;
+    final exact = await androidPlugin.canScheduleExactNotifications() ?? false;
+    
+    return {
+      'notifications': notifs,
+      'exactAlarms': exact,
+    };
+  }
+
+  /// Manually request exact alarm permission
+  Future<void> requestExactPermission() async {
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      print('NotificationService: Opening exact alarm settings');
+      await androidPlugin.requestExactAlarmsPermission();
+    }
   }
 
   static const AndroidNotificationDetails _androidDetails =
@@ -72,9 +98,15 @@ class NotificationService {
   }) async {
     if (!_initialized) await initialize();
     
+    print('[DEBUG] NotificationService: Scheduling for ${entry.subjectName} (P${entry.period})');
+    print('[DEBUG] NotificationService: Raw startTime: ${entry.startTime}');
+    
     // Construct fire time directly in Kolkata timezone
     final parts = entry.startTime.split(':');
-    if (parts.length < 2) return;
+    if (parts.length < 2) {
+      print('[DEBUG] NotificationService: ABORT - Invalid startTime format');
+      return;
+    }
     
     final hour = int.tryParse(parts[0]) ?? 0;
     final minute = int.tryParse(parts[1]) ?? 0;
@@ -93,18 +125,20 @@ class NotificationService {
 
     final fireAt = scheduledDate.subtract(Duration(minutes: minutesBefore));
     
-    print('NotificationService: Scheduling ${entry.subjectName}');
-    print('NotificationService: Current time (Kolkata): $nowKolkata');
-    print('NotificationService: Scheduled fire time (Kolkata): $fireAt');
+    print('[DEBUG] NotificationService: Current time (Kolkata): $nowKolkata');
+    print('[DEBUG] NotificationService: Target class time: $scheduledDate');
+    print('[DEBUG] NotificationService: Scheduled fire time: $fireAt');
 
     if (fireAt.isBefore(nowKolkata)) {
-      print('NotificationService: SKIPPING - Fire time is in the past.');
+      print('[DEBUG] NotificationService: SKIPPING - Fire time is in the PAST.');
       return; 
     }
 
     try {
+      final id = _notifId(entry, date);
+      print('[DEBUG] NotificationService: Calling zonedSchedule with ID: $id');
       await _plugin.zonedSchedule(
-        _notifId(entry, date),
+        id,
         '📚 Class in $minutesBefore min',
         '${entry.subjectName} — Period ${entry.period} at ${entry.startTime}',
         fireAt,
@@ -113,12 +147,12 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
-      print('NotificationService: SUCCESS scheduled with ID ${_notifId(entry, date)}');
+      print('[DEBUG] NotificationService: SUCCESS - Scheduled ID $id');
     } catch (e) {
-      print('NotificationService: ERROR scheduling: $e');
+      print('[DEBUG] NotificationService: EXCEPTION: $e');
       // If exact alarm fails, try non-exact as fallback
       if (e.toString().contains('exact_alarm')) {
-        print('NotificationService: Retrying with inexact scheduling...');
+        print('[DEBUG] NotificationService: Fallback to inexact scheduling...');
         await _plugin.zonedSchedule(
           _notifId(entry, date),
           '📚 Class in $minutesBefore min',
