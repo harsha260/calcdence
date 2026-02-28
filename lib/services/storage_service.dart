@@ -17,6 +17,21 @@ class StorageService {
     ),
   );
 
+  Future<T?> _withTimeout<T>(Future<T?> call) async {
+    try {
+      return await call.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          print('StorageService: Call timed out');
+          return null;
+        },
+      );
+    } catch (e) {
+      print('StorageService: Error during storage call: $e');
+      return null;
+    }
+  }
+
   /// Save username securely
   Future<void> saveUsername(String username) async {
     await _storage.write(key: ApiConstants.usernameKey, value: username);
@@ -24,7 +39,7 @@ class StorageService {
 
   /// Get saved username
   Future<String?> getUsername() async {
-    return await _storage.read(key: ApiConstants.usernameKey);
+    return await _withTimeout(_storage.read(key: ApiConstants.usernameKey));
   }
 
   /// Save password securely
@@ -34,7 +49,7 @@ class StorageService {
 
   /// Get saved password
   Future<String?> getPassword() async {
-    return await _storage.read(key: ApiConstants.passwordKey);
+    return await _withTimeout(_storage.read(key: ApiConstants.passwordKey));
   }
 
   /// Save session key
@@ -44,7 +59,7 @@ class StorageService {
 
   /// Get saved session key
   Future<String?> getSessionKey() async {
-    return await _storage.read(key: ApiConstants.sessionKeyKey);
+    return await _withTimeout(_storage.read(key: ApiConstants.sessionKeyKey));
   }
 
   /// Check if credentials are saved

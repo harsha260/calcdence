@@ -28,39 +28,52 @@ class AuthProvider extends ChangeNotifier {
 
   /// Initialize - Check for stored credentials and try silent login
   Future<void> initialize() async {
+    print('AuthProvider: Starting initialization');
     _state = AuthState.loading;
     notifyListeners();
 
     try {
-      final hasCredentials = await _storageService.hasStoredCredentials();
-      
-      if (hasCredentials) {
-        // Try silent login with stored credentials
-        final username = await _storageService.getUsername();
-        final password = await _storageService.getPassword();
-        
-        if (username != null && password != null) {
-          _username = username;
-          final result = await _apiService.login(username, password);
-          
-          if (result['success']) {
-            // Save session key
-            await _storageService.saveSessionKey(result['sessionKey']);
-            _state = AuthState.authenticated;
-            notifyListeners();
-            return;
-          }
-        }
-      }
-      
-      // No stored credentials or login failed
-      _state = AuthState.unauthenticated;
+      await Future.any([
+        _doInitialize(),
+        Future.delayed(const Duration(seconds: 15), () => throw Exception('Auth initialization timed out')),
+      ]);
     } catch (e) {
+      print('AuthProvider: Initialization error: $e');
       _errorMessage = e.toString();
       _state = AuthState.unauthenticated;
     }
     
     notifyListeners();
+  }
+
+  Future<void> _doInitialize() async {
+    final hasCredentials = await _storageService.hasStoredCredentials();
+    print('AuthProvider: Has stored credentials? $hasCredentials');
+    
+    if (hasCredentials) {
+      // Try silent login with stored credentials
+      final username = await _storageService.getUsername();
+      final password = await _storageService.getPassword();
+      print('AuthProvider: Attempting silent login for $username');
+      
+      if (username != null && password != null) {
+        _username = username;
+        final result = await _apiService.login(username, password);
+        print('AuthProvider: Silent login result: ${result['success']}');
+        
+        if (result['success']) {
+          // Save session key
+          await _storageService.saveSessionKey(result['sessionKey']);
+          _state = AuthState.authenticated;
+          print('AuthProvider: Initialization complete - authenticated');
+          return;
+        }
+      }
+    }
+    
+    // No stored credentials or login failed
+    print('AuthProvider: Initialization complete - unauthenticated');
+    _state = AuthState.unauthenticated;
   }
 
   /// Login with credentials

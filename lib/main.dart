@@ -17,7 +17,15 @@ import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService().initialize();
+  
+  // Initialize notifications with a timeout to prevent absolute freeze
+  print('main: Initializing NotificationService...');
+  await NotificationService().initialize().timeout(
+    const Duration(seconds: 10),
+    onTimeout: () => print('main: NotificationService initialization timed out'),
+  ).catchError((e) => print('main: NotificationService error: $e'));
+
+  print('main: Starting app...');
   runApp(const CampXAttendanceApp());
 }
 

@@ -17,39 +17,52 @@ class NotificationService {
   /// Call once in main() before runApp.
   Future<void> initialize() async {
     if (_initialized) return;
-    tz_data.initializeTimeZones();
-    // Set local timezone — adjust if needed, or detect via device
-    print('NotificationService: Initializing timezones: Asia/Kolkata');
-    tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
-    print('NotificationService: Local time is: ${DateTime.now()}');
+    print('NotificationService: Starting initialization');
+    try {
+      tz_data.initializeTimeZones();
+      // Set local timezone — adjust if needed, or detect via device
+      print('NotificationService: Initializing timezones: Asia/Kolkata');
+      tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
+      print('NotificationService: Local time is: ${DateTime.now()}');
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+      const androidSettings =
+          AndroidInitializationSettings('@mipmap/launcher_icon');
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
 
-    await _plugin.initialize(
-      const InitializationSettings(
-          android: androidSettings, iOS: iosSettings),
-    );
+      print('NotificationService: Initializing plugin...');
+      await _plugin.initialize(
+        const InitializationSettings(
+            android: androidSettings, iOS: iosSettings),
+      );
 
-    // Request permission on Android 13+
-    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    
-    if (androidPlugin != null) {
-      print('NotificationService: Requesting initial Android permissions');
-      await androidPlugin.requestNotificationsPermission();
-      // Only request exact alarm permission if needed (Android 13+)
-      await androidPlugin.requestExactAlarmsPermission();
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+
+      // Explicitly create notification channel for Android 14
+      if (androidPlugin != null) {
+        print('NotificationService: Creating custom notification channel');
+        await androidPlugin.createNotificationChannel(_channel);
+        
+        print('NotificationService: Requesting initial Android permissions');
+        // We use wait with a timeout or just print to see if we get stuck here
+        print('NotificationService: Requesting notification permission...');
+        await androidPlugin.requestNotificationsPermission();
+        print('NotificationService: Notification permission request returned');
+        
+        print('NotificationService: Requesting exact alarm permission...');
+        await androidPlugin.requestExactAlarmsPermission();
+        print('NotificationService: Exact alarm permission request returned');
+      }
+
+      print('NotificationService: Plugin initialized successfully');
+      _initialized = true;
+    } catch (e) {
+      print('NotificationService: Initialization failed with error: $e');
     }
-
-    print('NotificationService: Plugin initialized');
-
-    _initialized = true;
   }
 
   /// Check if we have required permissions
@@ -77,6 +90,13 @@ class NotificationService {
     }
   }
 
+  static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
+    'campx_class_reminders',
+    'Class Reminders',
+    description: 'Reminders before each class period begins',
+    importance: Importance.high,
+  );
+
   static const AndroidNotificationDetails _androidDetails =
       AndroidNotificationDetails(
     'campx_class_reminders',
@@ -84,7 +104,7 @@ class NotificationService {
     channelDescription: 'Reminders before each class period begins',
     importance: Importance.high,
     priority: Priority.high,
-    icon: '@mipmap/ic_launcher',
+    icon: '@mipmap/launcher_icon',
   );
 
   static const NotificationDetails _details =
@@ -137,22 +157,43 @@ class NotificationService {
     try {
       final id = _notifId(entry, date);
       print('[DEBUG] NotificationService: Calling zonedSchedule with ID: $id');
-      await _plugin.zonedSchedule(
-        id,
-        '📚 Class in $minutesBefore min',
-        '${entry.subjectName} — Period ${entry.period} at ${entry.startTime}',
-        fireAt,
-        _details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+      
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      bool canScheduleExact = true;
+      if (androidPlugin != null) {
+        canScheduleExact = await androidPlugin.canScheduleExactNotifications() ?? false;
+      }
+
+      if (canScheduleExact) {
+        await _plugin.zonedSchedule(
+          id,
+          '📚 Class in $minutesBefore min',
+          '${entry.subjectName} — Period ${entry.period} at ${entry.startTime}',
+          fireAt,
+          _details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } else {
+        print('[DEBUG] NotificationService: Exact permission missing, falling back to inexact.');
+        await _plugin.zonedSchedule(
+          id,
+          '📚 Class in $minutesBefore min',
+          '${entry.subjectName} — Period ${entry.period} at ${entry.startTime}',
+          fireAt,
+          _details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
       print('[DEBUG] NotificationService: SUCCESS - Scheduled ID $id');
     } catch (e) {
-      print('[DEBUG] NotificationService: EXCEPTION: $e');
-      // If exact alarm fails, try non-exact as fallback
-      if (e.toString().contains('exact_alarm')) {
-        print('[DEBUG] NotificationService: Fallback to inexact scheduling...');
+      print('[DEBUG] NotificationService: EXCEPTION during scheduling: $e');
+      // Final fallback to inexact for any unexpected error
+      try {
         await _plugin.zonedSchedule(
           _notifId(entry, date),
           '📚 Class in $minutesBefore min',
@@ -163,6 +204,8 @@ class NotificationService {
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
         );
+      } catch (innerE) {
+        print('[DEBUG] NotificationService: FATAL scheduling error: $innerE');
       }
     }
   }
@@ -204,9 +247,17 @@ class NotificationService {
     }
   }
 
-  /// Unique notification ID based on entry + date (fits in int32).
-  int _notifId(TimetableEntry entry, DateTime date) =>
-      (date.month * 10000000 + date.day * 100000 + entry.period * 1000 + (entry.subjectId % 1000))
-          .abs() %
-      (1 << 30);
+  /// Generate a unique notification ID that fits in a 32-bit signed integer.
+  /// Format: DayIndex (1 digit) + SubjectId (last 4 digits) + Period (1 digit)
+  int _notifId(TimetableEntry entry, DateTime date) {
+    final dayIndex = date.weekday; // 1-7
+    final subjPart = (entry.subjectId % 10000); // last 4 digits
+    final periodPart = (entry.period % 10);
+    
+    // Combine into a number like XYZZZP (X=Day, Y=Spare, ZZZ=Subj, P=Period)
+    // Using simple offset to ensure it's unique but within 2^31 - 1
+    final id = (dayIndex * 1000000) + (subjPart * 10) + periodPart;
+    print('[DEBUG] NotificationService: Generated ID $id for Day:$dayIndex Subj:${entry.subjectId} Period:${entry.period}');
+    return id;
+  }
 }

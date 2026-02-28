@@ -333,7 +333,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 32),
           Center(
             child: Text(
-              '${AppConstants.appName} v1.2.0-beta',
+              '${AppConstants.appName} v0.5',
               style: const TextStyle(fontSize: 12),
             ),
           ),
