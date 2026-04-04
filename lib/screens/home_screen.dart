@@ -7,15 +7,15 @@ import '../providers/timetable_provider.dart';
 import '../providers/college_day_provider.dart';
 import '../providers/notification_provider.dart';
 import '../constants.dart';
-import '../models/subject.dart';
 import '../models/timetable_entry.dart';
-import 'subject_detail_screen.dart';
 import 'overall_detail_screen.dart';
 import 'settings_screen.dart';
 import 'calendar_screen.dart';
 import 'announcement_screen.dart';
 import 'todo_screen.dart';
 import '../services/notification_service.dart';
+import '../widgets/overall_attendance_card.dart';
+import '../widgets/subject_list_tile.dart';
 
 /// Home Screen - Attendance Dashboard
 class HomeScreen extends StatefulWidget {
@@ -174,10 +174,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                    child: _buildOverallCard(
-                      attendance.overallPercentage,
-                      attendance.totalAttended,
-                      attendance.totalConducted,
+                    child: OverallAttendanceCard(
+                      percentage: attendance.overallPercentage,
+                      attended: attendance.totalAttended,
+                      conducted: attendance.totalConducted,
                     ),
                   ),
                 ),
@@ -316,7 +316,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       return SliverList(
                         delegate: SliverChildBuilderDelegate((context, index) {
                           final subject = subjects[index];
-                          return _buildSubjectCard(subject);
+                          return SubjectListTile(
+                            subject: subject,
+                            targetPercentage: targetProv.target,
+                          );
                         }, childCount: subjects.length),
                       );
                     },
@@ -328,81 +331,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildOverallCard(double percentage, int attended, int conducted) {
-    final isAboveThreshold = percentage >= AppConstants.attendanceThreshold;
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isAboveThreshold
-              ? [Colors.green.shade600, Colors.green.shade400]
-              : [Colors.red.shade600, Colors.red.shade400],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: (isAboveThreshold ? Colors.green : Colors.red).withValues(
-              alpha: 0.3,
-            ),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Overall Attendance',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${percentage.toStringAsFixed(1)}%',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$attended / $conducted classes attended',
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              isAboveThreshold ? '✓ Above 75%' : '⚠ Below 75%',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Tap for calculator →',
-            style: TextStyle(color: Colors.white60, fontSize: 11),
-          ),
-        ],
       ),
     );
   }
@@ -636,146 +564,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSubjectCard(Subject subject) {
-    // Determine color based on target
-    final target = context.read<TargetProvider>().target;
-    final isAboveThreshold = subject.percentage >= target;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => SubjectDetailScreen(subject: subject),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Attendance Circle
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isAboveThreshold
-                      ? Colors.green.withValues(alpha: 0.1)
-                      : Colors.red.withValues(alpha: 0.1),
-                  border: Border.all(
-                    color: isAboveThreshold ? Colors.green : Colors.red,
-                    width: 3,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    '${subject.percentage.toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      color: isAboveThreshold ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Subject Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Text(
-                        subject.subjectName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Code: ${subject.subjectCode}',
-                      style: TextStyle(
-                        color: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Classes Info
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        size: 16,
-                        color: Colors.green[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${subject.classesAttended}',
-                        style: TextStyle(
-                          color: Colors.green[600],
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        ' / ${subject.totalClasses}',
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isAboveThreshold
-                          ? Colors.green.withValues(alpha: 0.1)
-                          : Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      subject.statusLabel,
-                      style: TextStyle(
-                        color: isAboveThreshold ? Colors.green : Colors.red,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right, color: Theme.of(context).dividerColor),
-            ],
-          ),
-        ),
-      ),
     );
   }
 

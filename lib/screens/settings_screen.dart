@@ -11,8 +11,8 @@ import '../providers/auth_provider.dart';
 import '../services/notification_service.dart';
 import '../models/timetable_entry.dart';
 import 'login_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../services/update_service.dart';
 
 /// Settings Screen - Debug/Configuration options
 class SettingsScreen extends StatefulWidget {
@@ -332,10 +332,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.system_update, color: Colors.blue),
                   title: const Text('Check for Updates'),
-                  subtitle: const Text(
-                    'Check for the latest version on GitHub',
+                  subtitle: Text(
+                    _isCheckingUpdates
+                        ? 'Checking...'
+                        : 'Check for the latest version on GitHub',
                   ),
-                  trailing: const Icon(Icons.open_in_new, size: 18),
+                  trailing: _isCheckingUpdates
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.open_in_new, size: 18),
                   onTap: _checkForUpdates,
                 ),
               ),
@@ -361,11 +369,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
 
               const SizedBox(height: 32),
-              Center(
-                child: Text(
-                  '${AppConstants.appName} v0.5',
-                  style: const TextStyle(fontSize: 12),
-                ),
+              FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (context, snapshot) {
+                  final version = snapshot.data?.version ?? 'Unknown';
+                  return Center(
+                    child: Text(
+                      '${AppConstants.appName} v$version',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
             ],
@@ -375,35 +389,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  bool _isCheckingUpdates = false;
+
   Future<void> _checkForUpdates() async {
+    if (_isCheckingUpdates) return;
+    setState(() => _isCheckingUpdates = true);
+
     try {
-      final response = await http.get(
-        Uri.parse(
-          'https://api.github.com/repos/harsha260/calcdence/releases/latest',
-        ),
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final latestVersion = data['tag_name'] ?? 'Unknown';
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Update Check'),
-              content: Text(
-                'Latest Version: $latestVersion\nCurrent Version: 0.4',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
+      final updateInfo = await UpdateService().checkForUpdates();
+      if (!mounted) return;
+
+      if (updateInfo == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not fetch update information.')),
+        );
+        return;
+      }
+
+      if (updateInfo.updateAvailable) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Update Available! 🎉'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'A new version (v${updateInfo.latestVersion}) is available.',
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Release Notes:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  updateInfo.releaseNotes.length > 200
+                      ? '${updateInfo.releaseNotes.substring(0, 200)}...'
+                      : updateInfo.releaseNotes,
+                  style: const TextStyle(fontSize: 12),
                 ),
               ],
             ),
-          );
-        }
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Later'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  UpdateService().launchUpdateUrl(updateInfo.updateUrl);
+                },
+                child: const Text('Download'),
+              ),
+            ],
+          ),
+        );
       } else {
-        throw Exception('Failed to check updates');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You are on the latest version (v${updateInfo.currentVersion}).',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -411,6 +463,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text('Error checking updates: $e')));
       }
+    } finally {
+      if (mounted) setState(() => _isCheckingUpdates = false);
     }
   }
 

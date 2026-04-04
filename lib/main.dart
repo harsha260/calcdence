@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'constants.dart';
@@ -18,23 +19,38 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/notification_service.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: ".env");
+      await dotenv.load(fileName: ".env");
 
-  // Initialize notifications with a timeout to prevent absolute freeze
-  debugPrint('main: Initializing NotificationService...');
-  await NotificationService()
-      .initialize()
-      .timeout(
-        const Duration(seconds: 10),
-        onTimeout: () =>
-            debugPrint('main: NotificationService initialization timed out'),
-      )
-      .catchError((e) => debugPrint('main: NotificationService error: $e'));
+      FlutterError.onError = (FlutterErrorDetails details) {
+        FlutterError.presentError(details);
+        debugPrint('🚨 FlutterError caught: ${details.exception}');
+        // TODO: Log to Sentry / Crashlytics here
+      };
 
-  debugPrint('main: Starting app...');
-  runApp(const CampXAttendanceApp());
+      // Initialize notifications with a timeout to prevent absolute freeze
+      debugPrint('main: Initializing NotificationService...');
+      await NotificationService()
+          .initialize()
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => debugPrint(
+              'main: NotificationService initialization timed out',
+            ),
+          )
+          .catchError((e) => debugPrint('main: NotificationService error: $e'));
+
+      debugPrint('main: Starting app...');
+      runApp(const CampXAttendanceApp());
+    },
+    (error, stack) {
+      debugPrint('🚨 Uncaught error in runZonedGuarded: $error');
+      // TODO: Log to Sentry / Crashlytics here
+    },
+  );
 }
 
 /// Main Application Widget
