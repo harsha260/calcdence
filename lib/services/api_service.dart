@@ -15,12 +15,10 @@ class ApiException implements Exception {
 
 /// CampX API Service - Handles all API communications with cookie-based session management
 class CampXApiService {
-  static final CampXApiService _instance = CampXApiService._internal();
-  factory CampXApiService() => _instance;
-  CampXApiService._internal();
-
   String? _sessionKey;
-  final http.Client _client = http.Client();
+  final http.Client _client;
+
+  CampXApiService({http.Client? client}) : _client = client ?? http.Client();
 
   /// Get current session key
   String? get sessionKey => _sessionKey;

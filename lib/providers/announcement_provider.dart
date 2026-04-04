@@ -18,9 +18,11 @@ class Announcement {
 }
 
 class AnnouncementProvider extends ChangeNotifier {
-  final CampXApiService _apiService = CampXApiService();
+  final CampXApiService _apiService;
   List<Announcement> _announcements = [];
   bool _isLoading = false;
+
+  AnnouncementProvider(this._apiService);
 
   List<Announcement> get announcements => _announcements;
   bool get isLoading => _isLoading;

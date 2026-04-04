@@ -33,15 +33,15 @@ class AppConstants {
   static const double attendanceThreshold = 75.0;
   static const Duration connectionTimeout = Duration(seconds: 30);
 
-  /// The 15 subject codes to fetch
-  static const List<int> subjectCodes = [
+  /// Fallback subject codes to fetch if API fails completely
+  static const List<int> fallbackSubjectCodes = [
     1332, 1337, 1343, 1344, 1345,
     1346, 1347, 1348, 1349, 1350,
     1438, 1439, 1658, 1749, 1776,
   ];
 
-  /// Hardcoded subject names keyed by subject code
-  static const Map<int, String> subjectNames = {
+  /// Fallback subject names if API is unavailable
+  static const Map<int, String> fallbackSubjectNames = {
     1332: 'Entrepreneurship Development & IPR',
     1337: 'Computer Organization & Microprocessors',
     1343: 'Compiler Design',
@@ -59,7 +59,7 @@ class AppConstants {
     1776: 'MID 2 Exam',
   };
 
-  /// Resolve a display name for a subject code
+  /// Resolve a display name for a subject code (Fallback)
   static String subjectName(int code) =>
-      subjectNames[code] ?? 'Subject $code';
+      fallbackSubjectNames[code] ?? 'Subject $code';
 }

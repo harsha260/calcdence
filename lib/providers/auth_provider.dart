@@ -13,8 +13,10 @@ enum AuthState {
 
 /// Authentication Provider - Manages user authentication state
 class AuthProvider extends ChangeNotifier {
-  final api.CampXApiService _apiService = api.CampXApiService();
+  final api.CampXApiService _apiService;
   final StorageService _storageService = StorageService();
+
+  AuthProvider(this._apiService);
 
   AuthState _state = AuthState.initial;
   String? _errorMessage;

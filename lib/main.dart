@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'constants.dart';
+import 'services/api_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/attendance_provider.dart';
 import 'providers/theme_provider.dart';
@@ -37,14 +38,27 @@ class CampXAttendanceApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => AttendanceProvider()),
+        Provider<CampXApiService>(create: (_) => CampXApiService()),
+        ChangeNotifierProxyProvider<CampXApiService, AuthProvider>(
+          create: (context) => AuthProvider(context.read<CampXApiService>()),
+          update: (context, api, previous) => previous ?? AuthProvider(api),
+        ),
+        ChangeNotifierProxyProvider<CampXApiService, AttendanceProvider>(
+          create: (context) => AttendanceProvider(context.read<CampXApiService>()),
+          update: (context, api, previous) => previous ?? AttendanceProvider(api),
+        ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => TargetProvider()),
-        ChangeNotifierProvider(create: (_) => TimetableProvider()),
+        ChangeNotifierProxyProvider<CampXApiService, TimetableProvider>(
+          create: (context) => TimetableProvider(context.read<CampXApiService>()),
+          update: (context, api, previous) => previous ?? TimetableProvider(api),
+        ),
         ChangeNotifierProvider(create: (_) => CollegeDayProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
-        ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
+        ChangeNotifierProxyProvider<CampXApiService, AnnouncementProvider>(
+          create: (context) => AnnouncementProvider(context.read<CampXApiService>()),
+          update: (context, api, previous) => previous ?? AnnouncementProvider(api),
+        ),
         ChangeNotifierProvider(create: (_) => TodoProvider()),
       ],
       child: Consumer<ThemeProvider>(

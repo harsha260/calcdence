@@ -6,7 +6,9 @@ enum TimetableState { initial, loading, loaded, error }
 
 /// Fetches and caches the classroom timetable from the CampX API.
 class TimetableProvider extends ChangeNotifier {
-  final api.CampXApiService _apiService = api.CampXApiService();
+  final api.CampXApiService _apiService;
+
+  TimetableProvider(this._apiService);
 
   TimetableState _state = TimetableState.initial;
   List<TimetableEntry> _templateEntries = [];

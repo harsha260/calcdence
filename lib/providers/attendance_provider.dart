@@ -7,6 +7,7 @@ import '../models/subject.dart';
 import '../models/timetable_entry.dart';
 import '../services/api_service.dart' as api;
 import '../services/notification_service.dart';
+import '../repositories/attendance_repository.dart';
 import 'dart:math' as math;
 
 /// Attendance loading state enum
@@ -19,7 +20,12 @@ enum AttendanceState {
 
 /// Attendance Provider - Manages attendance data and state
 class AttendanceProvider extends ChangeNotifier {
-  final api.CampXApiService _apiService = api.CampXApiService();
+  final api.CampXApiService _apiService;
+  late final AttendanceRepository _repository;
+
+  AttendanceProvider(this._apiService) {
+    _repository = AttendanceRepository(_apiService);
+  }
 
   AttendanceState _state = AttendanceState.initial;
   Attendance? _attendance;
@@ -51,35 +57,24 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // ── Step 1: subjects API ─────────────────────────────────────────
-      final subjectsList = await _apiService.getSubjects(semNo: _semNo);
-      print('AttendanceProvider: Fetched ${subjectsList.length} subjects from API');
+      final result = await _repository.fetchFullAttendance();
 
-      // Build id → name map and collect IDs that have attendance
-      final nameMap = <int, String>{};
-      final attendanceIds = <int>[];
+      _attendance = result.attendance;
+      _nameMap = result.nameMap;
+      _allSessions = result.sessions; // Store for TimetableProvider to pick up
+      
+      print('AttendanceProvider: Total sessions collected: ${_allSessions.length}');
+      
+      await _checkAndNotifyAbsences(result.attendance.subjects);
 
-      for (final s in subjectsList) {
-        final id = s['id'];
-        print('AttendanceProvider: Processing subject: $s');
-        if (id == null) continue;
-        final subjectId = (id is int) ? id : int.tryParse(id.toString());
-        if (subjectId == null) continue;
+      _state = AttendanceState.loaded;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _state = AttendanceState.error;
+    }
 
-        final bool hasAttendance = s['hasAttendance'] == true;
-        if (!hasAttendance) continue;
-
-        // Raw name from API; strip stray newlines/carriage-returns
-        final rawName = (s['name'] as String? ?? '')
-            .replaceAll(RegExp(r'[\r\n]+'), ' ')
-            .trim();
-        // Prefer hardcoded short-name if available, else use API name
-        final name = AppConstants.subjectNames[subjectId] ??
-            (rawName.isEmpty ? 'Subject $subjectId' : rawName);
-
-        nameMap[subjectId] = name;
-        attendanceIds.add(subjectId);
-      }
+    notifyListeners();
+  }
 
       // Fallback: if subjects API returned nothing, use hardcoded list
       if (attendanceIds.isEmpty) {
