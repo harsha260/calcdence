@@ -427,7 +427,45 @@ class _HomeScreenState extends State<HomeScreen> {
     TargetProvider targetProv,
   ) {
     final today = timetableProv.todayPeriods;
-    if (today.isEmpty) return const SizedBox.shrink();
+
+    if (today.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Today\'s Bunking Tips',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            elevation: 0,
+            color: Theme.of(context).cardColor.withValues(alpha: 0.5),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.weekend, color: Colors.deepPurple),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'No classes scheduled for today! Enjoy your day off.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     final target = targetProv.target;
     final List<Map<String, dynamic>> tips = [];
