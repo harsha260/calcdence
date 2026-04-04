@@ -12,11 +12,13 @@ import 'providers/college_day_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/announcement_provider.dart';
 import 'providers/todo_provider.dart';
+import 'providers/achievement_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/notification_service.dart';
+import 'services/widget_service.dart';
 
 void main() async {
   runZonedGuarded(
@@ -24,6 +26,7 @@ void main() async {
       WidgetsFlutterBinding.ensureInitialized();
 
       await dotenv.load(fileName: ".env");
+      await WidgetService.init();
 
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);
@@ -89,6 +92,9 @@ class CampXAttendanceApp extends StatelessWidget {
               previous ?? AnnouncementProvider(api),
         ),
         ChangeNotifierProvider(create: (_) => TodoProvider()),
+        ChangeNotifierProvider(
+          create: (_) => AchievementProvider()..loadAchievements(),
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) => MaterialApp(

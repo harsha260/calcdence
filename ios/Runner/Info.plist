@@ -45,6 +45,10 @@
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
+		<key>NSCalendarsUsageDescription</key>
+		<string>This app requires access to your calendar to sync your class timetable directly to your device calendar.</string>
+		<key>NSContactsUsageDescription</key>
+		<string>This app requires contacts access to allow selecting attendees for events.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

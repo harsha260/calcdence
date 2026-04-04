@@ -13,6 +13,7 @@ import '../models/timetable_entry.dart';
 import 'login_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../services/update_service.dart';
+import '../services/calendar_sync_service.dart';
 
 /// Settings Screen - Debug/Configuration options
 class SettingsScreen extends StatefulWidget {
@@ -23,6 +24,32 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  bool _calendarSyncEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCalendarSyncState();
+  }
+
+  Future<void> _loadCalendarSyncState() async {
+    final isEnabled = await CalendarSyncService().isSyncEnabled();
+    if (mounted) {
+      setState(() {
+        _calendarSyncEnabled = isEnabled;
+      });
+    }
+  }
+
+  Future<void> _toggleCalendarSync(bool value) async {
+    await CalendarSyncService().setSyncEnabled(value);
+    if (mounted) {
+      setState(() {
+        _calendarSyncEnabled = value;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,6 +74,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   value: themeProv.isDark,
                   onChanged: (val) => themeProv.toggle(),
+                  activeThumbColor: Colors.deepPurple,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Calendar Sync
+              Card(
+                child: SwitchListTile(
+                  title: const Text('Sync to Device Calendar'),
+                  subtitle: const Text(
+                    'Automatically add classes to your device calendar',
+                  ),
+                  secondary: const Icon(
+                    Icons.event_available,
+                    color: Colors.deepPurple,
+                  ),
+                  value: _calendarSyncEnabled,
+                  onChanged: _toggleCalendarSync,
                   activeThumbColor: Colors.deepPurple,
                 ),
               ),
@@ -130,10 +176,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               await notifProv.setRemindMinutes(mins);
 
                               // Re-schedule if going to college today
-                              final collegeDay = context
-                                  .read<CollegeDayProvider>();
-                              final timetableProv = context
-                                  .read<TimetableProvider>();
+                              final collegeDay =
+                                  context.read<CollegeDayProvider>();
+                              final timetableProv =
+                                  context.read<TimetableProvider>();
                               if (collegeDay.isGoingToday &&
                                   timetableProv.isLoaded) {
                                 await NotificationService().scheduleAllForDate(
@@ -161,8 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               FutureBuilder<Map<String, bool>>(
                 future: NotificationService().checkPermissions(),
                 builder: (context, snapshot) {
-                  final perms =
-                      snapshot.data ??
+                  final perms = snapshot.data ??
                       {'notifications': true, 'exactAlarms': true};
                   final allOk =
                       perms['notifications']! && perms['exactAlarms']!;

@@ -183,9 +183,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 entry.topic ?? 'No topic recorded for this session.',
                 style: TextStyle(
                   fontSize: 15,
-                  fontStyle: entry.topic == null
-                      ? FontStyle.italic
-                      : FontStyle.normal,
+                  fontStyle:
+                      entry.topic == null ? FontStyle.italic : FontStyle.normal,
                   color: entry.topic == null
                       ? Theme.of(context).disabledColor
                       : null,

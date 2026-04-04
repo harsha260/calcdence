@@ -8,6 +8,7 @@ class Subject {
   final int totalClasses; // T
   final double percentage;
   final String subjectType; // Theory, Practical, etc.
+  final double credits; // Added for CGPA calculator
 
   Subject({
     required this.subjectCode,
@@ -16,6 +17,7 @@ class Subject {
     required this.totalClasses,
     required this.percentage,
     this.subjectType = 'Theory',
+    this.credits = 3.0, // Default to 3.0 credits
   });
 
   /// Create from API JSON response
@@ -35,8 +37,7 @@ class Subject {
     }
 
     // For Anits/CampX, 'id' is the unique integer we use for matching
-    final rawCode =
-        json['id'] ??
+    final rawCode = json['id'] ??
         json['subjectCode'] ??
         json['subject_code'] ??
         json['courseId'] ??
@@ -44,8 +45,7 @@ class Subject {
     final code = toInt(rawCode);
 
     // Prefer our hardcoded name; fall back to API name or code
-    final resolvedName =
-        AppConstants.fallbackSubjectNames[code] ??
+    final resolvedName = AppConstants.fallbackSubjectNames[code] ??
         json['name']?.toString() ??
         json['subjectName']?.toString() ??
         json['subject_name']?.toString() ??
@@ -64,8 +64,10 @@ class Subject {
       percentage = (attended / total) * 100;
     }
 
-    final type = (json['subjectType']?['type'] ?? json['type'] ?? 'Theory')
-        .toString();
+    final type =
+        (json['subjectType']?['type'] ?? json['type'] ?? 'Theory').toString();
+
+    final credits = toDouble(json['credits'] ?? 3.0);
 
     return Subject(
       subjectCode: code,
@@ -74,17 +76,19 @@ class Subject {
       totalClasses: total,
       percentage: percentage,
       subjectType: type,
+      credits: credits,
     );
   }
 
   /// Convert to JSON
   Map<String, dynamic> toJson() => {
-    'subjectCode': subjectCode,
-    'subjectName': subjectName,
-    'classesAttended': classesAttended,
-    'totalClasses': totalClasses,
-    'percentage': percentage,
-  };
+        'subjectCode': subjectCode,
+        'subjectName': subjectName,
+        'classesAttended': classesAttended,
+        'totalClasses': totalClasses,
+        'percentage': percentage,
+        'credits': credits,
+      };
 
   /// Check if attendance is above threshold (75%)
   bool get isAboveThreshold => percentage >= 75.0;

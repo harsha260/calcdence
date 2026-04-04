@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 0.6.0+6
 
 environment:
-  sdk: ^3.10.3
+  sdk: ^3.5.4
 
 dependencies:
   flutter:
@@ -43,6 +43,11 @@ dependencies:
   package_info_plus: ^9.0.1
   url_launcher: ^6.3.2
   flutter_native_splash: ^2.4.7
+  share_plus: ^12.0.2
+  screenshot: ^3.0.0
+  path_provider: ^2.1.5
+  device_calendar: ^4.3.3
+  home_widget: ^0.9.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

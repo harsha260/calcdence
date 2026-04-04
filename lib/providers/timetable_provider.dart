@@ -52,9 +52,8 @@ class TimetableProvider extends ChangeNotifier {
     final template = periodsForWeekday(date.weekday);
     if (template.isEmpty) return [];
 
-    final logs = _specificEntries
-        .where((e) => e.sessionDate == dateStr)
-        .toList();
+    final logs =
+        _specificEntries.where((e) => e.sessionDate == dateStr).toList();
     if (logs.isEmpty) {
       // Debug: debugPrint('TimetableProvider: No logs found for $dateStr');
       return template;
@@ -136,11 +135,12 @@ class TimetableProvider extends ChangeNotifier {
       }
     }
 
-    return result..sort((a, b) {
-      final aTime = a.startTime.padLeft(5, '0');
-      final bTime = b.startTime.padLeft(5, '0');
-      return aTime.compareTo(bTime);
-    });
+    return result
+      ..sort((a, b) {
+        final aTime = a.startTime.padLeft(5, '0');
+        final bTime = b.startTime.padLeft(5, '0');
+        return aTime.compareTo(bTime);
+      });
   }
 
   /// How many periods per day does [subjectId] appear on average?
@@ -183,9 +183,8 @@ class TimetableProvider extends ChangeNotifier {
 
         if (sessionDate != null) {
           final subjectLower = entry.subjectName.toLowerCase();
-          final statusLower = (json['attendanceStatus'] ?? '')
-              .toString()
-              .toLowerCase();
+          final statusLower =
+              (json['attendanceStatus'] ?? '').toString().toLowerCase();
 
           if (subjectLower.contains('holiday') ||
               statusLower.contains('holiday')) {
@@ -292,8 +291,7 @@ class TimetableProvider extends ChangeNotifier {
       String start,
       String end,
     ) {
-      final name =
-          nameMap[subjectId] ??
+      final name = nameMap[subjectId] ??
           (subjectId == 0 ? 'Holiday' : 'Subject $subjectId');
       final entry = TimetableEntry(
         id: nextId++,

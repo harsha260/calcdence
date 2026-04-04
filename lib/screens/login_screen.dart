@@ -70,19 +70,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     AppConstants.appName,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Track your attendance easily',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                    ),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                        ),
                   ),
                   const SizedBox(height: 48),
 
@@ -184,10 +184,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Use your CampX credentials to login',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
-                    ),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                        ),
                   ),
                 ],
               ),

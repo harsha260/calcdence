@@ -111,7 +111,10 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
                             'MMM dd, yyyy • hh:mm a',
                           ).format(announcement.date),
                           style: TextStyle(
-                            color: Theme.of(context).textTheme.bodySmall?.color
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.color
                                 ?.withValues(alpha: 0.7),
                             fontSize: 12,
                           ),

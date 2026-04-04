@@ -5,6 +5,7 @@ import '../providers/attendance_provider.dart';
 import '../providers/target_provider.dart';
 import '../providers/timetable_provider.dart';
 import '../providers/college_day_provider.dart';
+import '../providers/achievement_provider.dart';
 import '../providers/notification_provider.dart';
 import '../constants.dart';
 import '../models/timetable_entry.dart';
@@ -13,7 +14,11 @@ import 'settings_screen.dart';
 import 'calendar_screen.dart';
 import 'announcement_screen.dart';
 import 'todo_screen.dart';
+import 'achievements_screen.dart';
+import 'cgpa_calculator_screen.dart';
+import '../services/calendar_sync_service.dart';
 import '../services/notification_service.dart';
+import '../services/widget_service.dart';
 import '../widgets/overall_attendance_card.dart';
 import '../widgets/subject_list_tile.dart';
 
@@ -76,7 +81,15 @@ class _HomeScreenState extends State<HomeScreen> {
           entries: timetableProv.todayPeriods,
           minutesBefore: notifProv.remindMinutes,
         );
+
+        // Also sync today's timetable to calendar if enabled
+        await CalendarSyncService()
+            .syncTimetable(timetableProv.todayPeriods, DateTime.now());
       }
+
+      // Update the home screen widget
+      await WidgetService.updateWidgetData(
+          attendanceProv.attendance!, timetableProv.todayPeriods);
     } else {
       debugPrint('HomeScreen: No attendance data, skipping timetable fetch.');
     }
@@ -84,6 +97,108 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _handleRefresh() async {
     await _refreshData();
+  }
+
+  void _showToolsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                'Tools',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                constraints: const BoxConstraints(minHeight: 200),
+                alignment: Alignment.topLeft,
+                child: Wrap(
+                  alignment: WrapAlignment.start,
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    _buildToolItem(
+                      icon: Icons.campaign,
+                      label: 'Announcements',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const AnnouncementScreen()),
+                      ),
+                    ),
+                    _buildToolItem(
+                      icon: Icons.calculate,
+                      label: 'CGPA Calc',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const CgpaCalculatorScreen()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildToolItem(
+      {required IconData icon,
+      required String label,
+      required VoidCallback onTap}) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context); // Close bottom sheet
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 80,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.deepPurple),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -94,41 +209,79 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.campaign),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AnnouncementScreen()),
-              );
-            },
-            tooltip: 'Announcements',
-          ),
-          IconButton(
-            icon: const Icon(Icons.check_circle_outline),
-            onPressed: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const TodoScreen()));
-            },
-            tooltip: 'To-Do List',
-          ),
-          IconButton(
-            icon: const Icon(Icons.calendar_month),
-            onPressed: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const CalendarScreen()));
-            },
-            tooltip: 'Calendar',
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-            },
-            tooltip: 'Settings',
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Consumer<AchievementProvider>(
+                builder: (context, achievementProv, _) {
+                  return InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const AchievementsScreen()),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.local_fire_department,
+                              color: Colors.orangeAccent),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${achievementProv.currentStreak}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                visualDensity:
+                    const VisualDensity(horizontal: -4.0, vertical: -4.0),
+                icon: const Icon(Icons.check_circle_outline),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const TodoScreen()),
+                  );
+                },
+                tooltip: 'To-Do List',
+              ),
+              IconButton(
+                visualDensity:
+                    const VisualDensity(horizontal: -4.0, vertical: -4.0),
+                icon: const Icon(Icons.calendar_month),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CalendarScreen()),
+                  );
+                },
+                tooltip: 'Calendar',
+              ),
+              IconButton(
+                visualDensity:
+                    const VisualDensity(horizontal: -4.0, vertical: -4.0),
+                icon: const Icon(Icons.widgets),
+                onPressed: _showToolsBottomSheet,
+                tooltip: 'Tools',
+              ),
+              IconButton(
+                visualDensity:
+                    const VisualDensity(horizontal: -4.0, vertical: -4.0),
+                icon: const Icon(Icons.settings),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  );
+                },
+                tooltip: 'Settings',
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
         ],
       ),
@@ -184,31 +337,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // Bunk Recommender Card
                 SliverToBoxAdapter(
-                  child:
-                      Consumer3<
-                        AttendanceProvider,
-                        TimetableProvider,
-                        TargetProvider
-                      >(
-                        builder:
-                            (
-                              context,
-                              attendanceProv,
-                              timetableProv,
-                              targetProv,
-                              _,
-                            ) {
-                              if (!attendanceProv.hasData ||
-                                  !timetableProv.isLoaded) {
-                                return const SizedBox.shrink();
-                              }
-                              return _buildBunkRecommender(
-                                attendanceProv,
-                                timetableProv,
-                                targetProv,
-                              );
-                            },
-                      ),
+                  child: Consumer3<AttendanceProvider, TimetableProvider,
+                      TargetProvider>(
+                    builder: (
+                      context,
+                      attendanceProv,
+                      timetableProv,
+                      targetProv,
+                      _,
+                    ) {
+                      if (!attendanceProv.hasData || !timetableProv.isLoaded) {
+                        return const SizedBox.shrink();
+                      }
+                      return _buildBunkRecommender(
+                        attendanceProv,
+                        timetableProv,
+                        targetProv,
+                      );
+                    },
+                  ),
                 ),
 
                 // Search and Filter Bar
@@ -278,8 +425,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         subjects = subjects
                             .where(
                               (s) => s.subjectName.toLowerCase().contains(
-                                _searchQuery.toLowerCase(),
-                              ),
+                                    _searchQuery.toLowerCase(),
+                                  ),
                             )
                             .toList();
                       }
@@ -706,10 +853,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   'We couldn\'t fetch your attendance data. Please check your connection and try again.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.color?.withValues(alpha: 0.8),
-              ),
+                    color: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.color?.withValues(alpha: 0.8),
+                  ),
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(

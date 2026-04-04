@@ -27,8 +27,8 @@ class AttendanceCalculator {
     if (currentPercent <= targetPercent) return 0;
 
     // Calculate using formula: floor((P - R*T) / R)
-    final bunkable = ((attended - (targetPercent * total)) / targetPercent)
-        .floor();
+    final bunkable =
+        ((attended - (targetPercent * total)) / targetPercent).floor();
 
     return math.max(0, bunkable);
   }
@@ -52,8 +52,8 @@ class AttendanceCalculator {
     if (currentPercent >= targetPercent) return 0;
 
     // Calculate using formula: ceil((R*T - P) / (1 - R))
-    final needed = ((targetPercent * total - attended) / (1 - targetPercent))
-        .ceil();
+    final needed =
+        ((targetPercent * total - attended) / (1 - targetPercent)).ceil();
 
     return math.max(0, needed);
   }

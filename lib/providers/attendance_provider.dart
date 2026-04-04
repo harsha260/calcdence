@@ -96,21 +96,20 @@ class AttendanceProvider extends ChangeNotifier {
 
               // Find the most recent absent session from our fetched allSessions
               // Sort sessions descending to find the latest
-              final recentAbsences =
-                  _allSessions
-                      .where(
-                        (s) =>
-                            s.subjectId == subject.subjectCode &&
-                            s.isAttended == false,
-                      )
-                      .toList()
-                    ..sort((a, b) {
-                      final aDate = a.sessionDate ?? '';
-                      final bDate = b.sessionDate ?? '';
-                      if (aDate != bDate) return bDate.compareTo(aDate);
-                      // If same date, sort by period descending
-                      return b.period.compareTo(a.period);
-                    });
+              final recentAbsences = _allSessions
+                  .where(
+                    (s) =>
+                        s.subjectId == subject.subjectCode &&
+                        s.isAttended == false,
+                  )
+                  .toList()
+                ..sort((a, b) {
+                  final aDate = a.sessionDate ?? '';
+                  final bDate = b.sessionDate ?? '';
+                  if (aDate != bDate) return bDate.compareTo(aDate);
+                  // If same date, sort by period descending
+                  return b.period.compareTo(a.period);
+                });
 
               TimetableEntry? latestAbsence;
               if (recentAbsences.isNotEmpty) {
@@ -119,8 +118,7 @@ class AttendanceProvider extends ChangeNotifier {
 
               await NotificationService().showAbsentNotification(
                 subjectName: subject.subjectName,
-                date:
-                    latestAbsence?.sessionDate ??
+                date: latestAbsence?.sessionDate ??
                     DateTime.now().toLocal().toString().split(' ')[0],
                 period: latestAbsence?.period,
                 time: latestAbsence?.startTime,

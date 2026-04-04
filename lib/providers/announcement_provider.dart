@@ -45,8 +45,7 @@ class AnnouncementProvider extends ChangeNotifier {
           content:
               (json['feedText'] ?? json['content'] ?? json['description'] ?? '')
                   .toString(),
-          date:
-              DateTime.tryParse(json['createdAt'] ?? json['date'] ?? '') ??
+          date: DateTime.tryParse(json['createdAt'] ?? json['date'] ?? '') ??
               DateTime.now(),
           author: authorName?.toString(),
         );

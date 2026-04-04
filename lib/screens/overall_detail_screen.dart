@@ -45,9 +45,8 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
 
     // Initial value setup
     final tt = context.read<TimetableProvider>();
-    final avgPpd = (tt.isLoaded && tt.entries.isNotEmpty)
-        ? tt.entries.length / 5.0
-        : 6.0;
+    final avgPpd =
+        (tt.isLoaded && tt.entries.isNotEmpty) ? tt.entries.length / 5.0 : 6.0;
 
     _totalDays = widget.conducted > 0 ? widget.conducted / avgPpd : 1.0;
 
@@ -162,9 +161,9 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Text(
                           sorted[index].subjectName.substring(
-                            0,
-                            math.min(3, sorted[index].subjectName.length),
-                          ),
+                                0,
+                                math.min(3, sorted[index].subjectName.length),
+                              ),
                           style: const TextStyle(fontSize: 10),
                         ),
                       );
@@ -856,14 +855,14 @@ class _OverallDetailScreenState extends State<OverallDetailScreen> {
                           delta > 0.05
                               ? Icons.arrow_upward
                               : delta < -0.05
-                              ? Icons.arrow_downward
-                              : Icons.remove,
+                                  ? Icons.arrow_downward
+                                  : Icons.remove,
                           size: 13,
                           color: delta > 0.05
                               ? Colors.green
                               : delta < -0.05
-                              ? Colors.red
-                              : theme.dividerColor,
+                                  ? Colors.red
+                                  : theme.dividerColor,
                         ),
                         const SizedBox(width: 2),
                         Text(

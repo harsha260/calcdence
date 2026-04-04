@@ -27,9 +27,8 @@ class Attendance {
       totalAttended += subject.classesAttended;
       totalConducted += subject.totalClasses;
     }
-    final overall = totalConducted > 0
-        ? (totalAttended / totalConducted * 100)
-        : 0.0;
+    final overall =
+        totalConducted > 0 ? (totalAttended / totalConducted * 100) : 0.0;
 
     return Attendance(
       subjects: subjects,
@@ -41,25 +40,24 @@ class Attendance {
 
   /// Empty attendance
   factory Attendance.empty() => Attendance(
-    subjects: [],
-    overallPercentage: 0.0,
-    totalAttended: 0,
-    totalConducted: 0,
-  );
+        subjects: [],
+        overallPercentage: 0.0,
+        totalAttended: 0,
+        totalConducted: 0,
+      );
 
   /// Convert to JSON
   Map<String, dynamic> toJson() => {
-    'subjects': subjects.map((s) => s.toJson()).toList(),
-    'overallPercentage': overallPercentage,
-    'totalAttended': totalAttended,
-    'totalConducted': totalConducted,
-  };
+        'subjects': subjects.map((s) => s.toJson()).toList(),
+        'overallPercentage': overallPercentage,
+        'totalAttended': totalAttended,
+        'totalConducted': totalConducted,
+      };
 
   /// Create from custom JSON map (for caching)
   factory Attendance.fromJsonMap(Map<String, dynamic> json) {
     return Attendance(
-      subjects:
-          (json['subjects'] as List<dynamic>?)
+      subjects: (json['subjects'] as List<dynamic>?)
               ?.map((s) => Subject.fromJson(s as Map<String, dynamic>))
               .toList() ??
           [],

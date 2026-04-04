@@ -52,6 +52,10 @@ Welcome, AI Coding Assistant! This `AGENTS.md` file contains the essential conte
   ```bash
   flutter test --coverage
   ```
+- **Update Golden Tests (if applicable):**
+  ```bash
+  flutter test --update-goldens
+  ```
 
 ---
 
@@ -61,6 +65,8 @@ Welcome, AI Coding Assistant! This `AGENTS.md` file contains the essential conte
 - **Null Safety:** Strict null safety is enforced. Use `?`, `!`, `late`, and `??` correctly. Avoid `!` unless absolutely certain a value is non-null.
 - **Immutability:** Use `const` constructors for widgets wherever possible to optimize the widget tree rebuilds. Mark variables as `final` if they are not reassigned.
 - **Async/Await:** Prefer `async/await` over `.then()` chains for readability.
+- **Types:** Always provide explicit return types for functions/methods. Use `final` and `const` for immutability.
+- **Widget Refactoring:** If a file grows beyond ~300 lines or contains complex UI parts, extract reusable pieces into `lib/widgets/`.
 
 ### 3.2. Naming Conventions
 - **Classes, Enums, Typedefs:** `PascalCase` (e.g., `AttendanceProvider`, `SubjectModel`).

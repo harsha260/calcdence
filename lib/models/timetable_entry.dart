@@ -43,8 +43,7 @@ class TimetableEntry {
 
     // Day: might be "MONDAY" / "Monday" / 1-7 integer
     String day;
-    final rawDay =
-        json['day'] ??
+    final rawDay = json['day'] ??
         json['dayOfWeek'] ??
         json['weekDay'] ??
         json['day_name'] ??
@@ -123,25 +122,22 @@ class TimetableEntry {
       json['subjectId'] ?? json['subject_id'] ?? json['courseId'],
     );
 
-    final apiName = (json['subjectName'] ?? json['subject']?['name'] ?? '')
-        .toString();
-    final subjectName =
-        nameMap[subjectId] ??
+    final apiName =
+        (json['subjectName'] ?? json['subject']?['name'] ?? '').toString();
+    final subjectName = nameMap[subjectId] ??
         (apiName.isNotEmpty ? apiName : 'Subject $subjectId');
 
     // Times — try multiple field names
-    String startTime =
-        (json['startTime'] ??
-                json['start_time'] ??
-                json['fromTime'] ??
-                (period > 0 ? _periodToTime(period, isStart: true) : '08:50'))
-            .toString();
-    String endTime =
-        (json['endTime'] ??
-                json['end_time'] ??
-                json['toTime'] ??
-                (period > 0 ? _periodToTime(period, isStart: false) : '09:40'))
-            .toString();
+    String startTime = (json['startTime'] ??
+            json['start_time'] ??
+            json['fromTime'] ??
+            (period > 0 ? _periodToTime(period, isStart: true) : '08:50'))
+        .toString();
+    String endTime = (json['endTime'] ??
+            json['end_time'] ??
+            json['toTime'] ??
+            (period > 0 ? _periodToTime(period, isStart: false) : '09:40'))
+        .toString();
 
     // Map timeline fields to our model
     if (json.containsKey('orderNumber')) {
@@ -170,8 +166,7 @@ class TimetableEntry {
     // CRITICAL: For Anits/CampX, 'status' is often used where false=Present, true=Absent.
     // We prioritize other specific attendance keys first.
     final hasStatus = json.containsKey('status');
-    final rawAtt =
-        json['isAttended'] ??
+    final rawAtt = json['isAttended'] ??
         json['present'] ??
         json['attendanceStatus'] ??
         json['attendance_status'] ??

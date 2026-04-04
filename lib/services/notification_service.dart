@@ -43,10 +43,8 @@ class NotificationService {
         ),
       );
 
-      final androidPlugin = _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
 
       // Explicitly create notification channel for Android 14
       if (androidPlugin != null) {
@@ -81,10 +79,8 @@ class NotificationService {
 
   /// Check if we have required permissions
   Future<Map<String, bool>> checkPermissions() async {
-    final androidPlugin = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     if (androidPlugin == null) {
       return {'notifications': true, 'exactAlarms': true};
     }
@@ -97,10 +93,8 @@ class NotificationService {
 
   /// Manually request exact alarm permission
   Future<void> requestExactPermission() async {
-    final androidPlugin = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     if (androidPlugin != null) {
       debugPrint('NotificationService: Opening exact alarm settings');
       await androidPlugin.requestExactAlarmsPermission();
@@ -116,17 +110,55 @@ class NotificationService {
 
   static const AndroidNotificationDetails _androidDetails =
       AndroidNotificationDetails(
-        'campx_class_reminders',
-        'Class Reminders',
-        channelDescription: 'Reminders before each class period begins',
-        importance: Importance.high,
-        priority: Priority.high,
-        icon: '@mipmap/launcher_icon',
-      );
+    'campx_class_reminders',
+    'Class Reminders',
+    channelDescription: 'Reminders before each class period begins',
+    importance: Importance.high,
+    priority: Priority.high,
+    icon: '@mipmap/launcher_icon',
+  );
 
   static const NotificationDetails _details = NotificationDetails(
     android: _androidDetails,
   );
+
+  /// Cancel a specific notification by ID.
+  Future<void> cancelNotification(int id) async {
+    if (!_initialized) await initialize();
+    await _plugin.cancel(id);
+  }
+
+  /// Schedule a generic reminder for a to-do item.
+  Future<void> scheduleTodoReminder({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+  }) async {
+    if (!_initialized) await initialize();
+    if (scheduledDate.isBefore(DateTime.now())) return;
+
+    final tzDate = tz.TZDateTime.from(scheduledDate, tz.local);
+    await _plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tzDate,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'campx_todo_channel',
+          'To-Do Reminders',
+          channelDescription: 'Reminders for scheduled tasks',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/launcher_icon',
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
 
   /// Schedule a notification [minutesBefore] minutes before [entry] on [date].
   Future<void> scheduleClassReminder({
@@ -190,10 +222,8 @@ class NotificationService {
         '[DEBUG] NotificationService: Calling zonedSchedule with ID: $id',
       );
 
-      final androidPlugin = _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
       bool canScheduleExact = true;
       if (androidPlugin != null) {
         canScheduleExact =
@@ -354,10 +384,8 @@ class NotificationService {
     if (scheduledDate.isBefore(nowKolkata)) return;
 
     try {
-      final androidPlugin = _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
       bool canScheduleExact = true;
       if (androidPlugin != null) {
         canScheduleExact =

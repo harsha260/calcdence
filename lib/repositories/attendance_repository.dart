@@ -116,8 +116,7 @@ class AttendanceRepository {
         data['subjectName'] = nameMap[id] ?? 'Subject $id';
         final subject = Subject.fromJson(data);
 
-        final rawLogs =
-            data['timeline'] ??
+        final rawLogs = data['timeline'] ??
             data['attendanceLogs'] ??
             data['sessionList'] ??
             data['attendance_logs'] ??
@@ -157,9 +156,8 @@ class AttendanceRepository {
       totalConducted += s.totalClasses;
     }
 
-    final overallPercentage = totalConducted > 0
-        ? (totalAttended / totalConducted * 100)
-        : 0.0;
+    final overallPercentage =
+        totalConducted > 0 ? (totalAttended / totalConducted * 100) : 0.0;
 
     final attendance = Attendance(
       subjects: subjects,
