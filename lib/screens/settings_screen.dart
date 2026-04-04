@@ -23,7 +23,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,7 +104,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.notifications_active, color: Colors.deepPurple),
+                              const Icon(
+                                Icons.notifications_active,
+                                color: Colors.deepPurple,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Remind me: ${notifProv.remindMinutes} mins before',
@@ -126,11 +128,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onChanged: (val) async {
                               final mins = val.round();
                               await notifProv.setRemindMinutes(mins);
-                              
+
                               // Re-schedule if going to college today
-                              final collegeDay = context.read<CollegeDayProvider>();
-                              final timetableProv = context.read<TimetableProvider>();
-                              if (collegeDay.isGoingToday && timetableProv.isLoaded) {
+                              final collegeDay = context
+                                  .read<CollegeDayProvider>();
+                              final timetableProv = context
+                                  .read<TimetableProvider>();
+                              if (collegeDay.isGoingToday &&
+                                  timetableProv.isLoaded) {
                                 await NotificationService().scheduleAllForDate(
                                   date: DateTime.now(),
                                   entries: timetableProv.todayPeriods,
@@ -156,11 +161,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               FutureBuilder<Map<String, bool>>(
                 future: NotificationService().checkPermissions(),
                 builder: (context, snapshot) {
-                  final perms = snapshot.data ?? {'notifications': true, 'exactAlarms': true};
-                  final allOk = perms['notifications']! && perms['exactAlarms']!;
-                  
+                  final perms =
+                      snapshot.data ??
+                      {'notifications': true, 'exactAlarms': true};
+                  final allOk =
+                      perms['notifications']! && perms['exactAlarms']!;
+
                   return Card(
-                    color: allOk ? null : Colors.orange.withOpacity(0.1),
+                    color: allOk ? null : Colors.orange.withValues(alpha: 0.1),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -172,7 +180,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               SizedBox(width: 8),
                               Text(
                                 'Notification Permissions',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ],
                           ),
@@ -193,7 +204,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               width: double.infinity,
                               child: ElevatedButton.icon(
                                 onPressed: () async {
-                                  await NotificationService().requestExactPermission();
+                                  await NotificationService()
+                                      .requestExactPermission();
                                   setState(() {}); // Refresh
                                 },
                                 icon: const Icon(Icons.alarm_add),
@@ -209,145 +221,167 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
 
               const SizedBox(height: 16),
-          
-          // Test Buttons
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
+
+              // Test Buttons
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.bug_report, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Text(
-                        'Debug Tools',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      const Row(
+                        children: [
+                          Icon(Icons.bug_report, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Text(
+                            'Debug Tools',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          context.read<AttendanceProvider>().fetchAttendance();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Refreshing attendance...'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Refresh Attendance'),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await NotificationService()
+                              .showInstantTestNotification();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Instant notification triggered!',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.flash_on),
+                        label: const Text('Instant Test (Direct)'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            // Create a time 5 seconds from now
+                            final testTime = DateTime.now().add(
+                              const Duration(seconds: 10),
+                            );
+                            final timeStr =
+                                '${testTime.hour.toString().padLeft(2, '0')}:${testTime.minute.toString().padLeft(2, '0')}:${testTime.second.toString().padLeft(2, '0')}';
+
+                            await NotificationService().scheduleClassReminder(
+                              entry: TimetableEntry(
+                                id: 9999,
+                                day: 'TODAY',
+                                period: 0,
+                                subjectId: 0,
+                                subjectName: 'Test Scheduled Reminder',
+                                startTime: timeStr,
+                                endTime: '',
+                              ),
+                              date: DateTime.now(),
+                              minutesBefore: 0,
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Scheduled for $timeStr (In 10s)',
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.timer),
+                        label: const Text('Scheduled Test (In 10s)'),
                       ),
                     ],
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      context.read<AttendanceProvider>().fetchAttendance();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Refreshing attendance...')),
-                      );
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Refresh Attendance'),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      await NotificationService().showInstantTestNotification();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Instant notification triggered!')),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.flash_on),
-                    label: const Text('Instant Test (Direct)'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      try {
-                        // Create a time 5 seconds from now
-                        final testTime = DateTime.now().add(const Duration(seconds: 10));
-                        final timeStr = '${testTime.hour.toString().padLeft(2, '0')}:${testTime.minute.toString().padLeft(2, '0')}:${testTime.second.toString().padLeft(2, '0')}';
-                        
-                        await NotificationService().scheduleClassReminder(
-                          entry: TimetableEntry(
-                            id: 9999,
-                            day: 'TODAY',
-                            period: 0,
-                            subjectId: 0,
-                            subjectName: 'Test Scheduled Reminder',
-                            startTime: timeStr,
-                            endTime: '',
-                          ),
-                          date: DateTime.now(),
-                          minutesBefore: 0,
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Scheduled for $timeStr (In 10s)')),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
-                        }
-                      }
-                    },
-                    icon: const Icon(Icons.timer),
-                    label: const Text('Scheduled Test (In 10s)'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
 
-          const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-          // GitHub Update Checker
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.system_update, color: Colors.blue),
-              title: const Text('Check for Updates'),
-              subtitle: const Text('Check for the latest version on GitHub'),
-              trailing: const Icon(Icons.open_in_new, size: 18),
-              onTap: _checkForUpdates,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Logout Button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: ElevatedButton.icon(
-              onPressed: _handleLogout,
-              icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeProv.isDark ? Colors.red.withOpacity(0.15) : Colors.red.shade50,
-                foregroundColor: Colors.red,
-                side: BorderSide(color: Colors.red.withOpacity(0.3)),
-                minimumSize: const Size(double.infinity, 50),
+              // GitHub Update Checker
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.system_update, color: Colors.blue),
+                  title: const Text('Check for Updates'),
+                  subtitle: const Text(
+                    'Check for the latest version on GitHub',
+                  ),
+                  trailing: const Icon(Icons.open_in_new, size: 18),
+                  onTap: _checkForUpdates,
+                ),
               ),
-            ),
-          ),
 
-          const SizedBox(height: 32),
-          Center(
-            child: Text(
-              '${AppConstants.appName} v0.5',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-      );
-    },
-  ),
-);
-}
+              const SizedBox(height: 16),
+
+              // Logout Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: ElevatedButton.icon(
+                  onPressed: _handleLogout,
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: themeProv.isDark
+                        ? Colors.red.withValues(alpha: 0.15)
+                        : Colors.red.shade50,
+                    foregroundColor: Colors.red,
+                    side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+              Center(
+                child: Text(
+                  '${AppConstants.appName} v0.5',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   Future<void> _checkForUpdates() async {
     try {
-      final response = await http.get(Uri.parse('https://api.github.com/repos/harsha260/calcdence/releases/latest'));
+      final response = await http.get(
+        Uri.parse(
+          'https://api.github.com/repos/harsha260/calcdence/releases/latest',
+        ),
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final latestVersion = data['tag_name'] ?? 'Unknown';
@@ -356,9 +390,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Update Check'),
-              content: Text('Latest Version: $latestVersion\nCurrent Version: 0.4'),
+              content: Text(
+                'Latest Version: $latestVersion\nCurrent Version: 0.4',
+              ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
               ],
             ),
           );
@@ -368,7 +407,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error checking updates: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error checking updates: $e')));
       }
     }
   }
@@ -380,7 +421,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Logout', style: TextStyle(color: Colors.red)),
@@ -415,7 +459,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Text(description, style: const TextStyle(fontSize: 12)),
               ],
             ),
@@ -426,30 +473,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: status ? Colors.green : Colors.red,
               fontWeight: FontWeight.bold,
               fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7)),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontFamily: 'monospace'),
             ),
           ),
         ],

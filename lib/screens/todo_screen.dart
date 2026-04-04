@@ -40,7 +40,10 @@ class _TodoScreenState extends State<TodoScreen> {
           onSubmitted: (_) => _addTodo(),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(onPressed: _addTodo, child: const Text('Add')),
         ],
       ),
@@ -66,9 +69,20 @@ class _TodoScreenState extends State<TodoScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.playlist_add_check, size: 64, color: Theme.of(context).disabledColor),
+                  Icon(
+                    Icons.playlist_add_check,
+                    size: 64,
+                    color: Theme.of(context).disabledColor,
+                  ),
                   const SizedBox(height: 16),
-                  Text('Stay organized! Add your first task.', style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6))),
+                  Text(
+                    'Stay organized! Add your first task.',
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                    ),
+                  ),
                 ],
               ),
             );
@@ -81,9 +95,13 @@ class _TodoScreenState extends State<TodoScreen> {
               final todo = provider.todos[index];
               return Card(
                 elevation: todo.isDone ? 0 : 2,
-                color: todo.isDone ? Theme.of(context).cardColor.withOpacity(0.7) : null,
+                color: todo.isDone
+                    ? Theme.of(context).cardColor.withValues(alpha: 0.7)
+                    : null,
                 margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: ListTile(
                   leading: Checkbox(
                     value: todo.isDone,
@@ -93,13 +111,24 @@ class _TodoScreenState extends State<TodoScreen> {
                   title: Text(
                     todo.title,
                     style: TextStyle(
-                      decoration: todo.isDone ? TextDecoration.lineThrough : null,
-                      color: todo.isDone ? Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6) : null,
-                      fontWeight: todo.isDone ? FontWeight.normal : FontWeight.w500,
+                      decoration: todo.isDone
+                          ? TextDecoration.lineThrough
+                          : null,
+                      color: todo.isDone
+                          ? Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withValues(alpha: 0.6)
+                          : null,
+                      fontWeight: todo.isDone
+                          ? FontWeight.normal
+                          : FontWeight.w500,
                     ),
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                    ),
                     onPressed: () => provider.deleteTodo(todo.id),
                   ),
                 ),

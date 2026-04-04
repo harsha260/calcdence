@@ -38,9 +38,16 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                   Icon(Icons.announcement_outlined, size: 64, color: Theme.of(context).disabledColor),
-                   const SizedBox(height: 16),
-                   Text('No announcements yet', style: TextStyle(color: Theme.of(context).disabledColor)),
+                  Icon(
+                    Icons.announcement_outlined,
+                    size: 64,
+                    color: Theme.of(context).disabledColor,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No announcements yet',
+                    style: TextStyle(color: Theme.of(context).disabledColor),
+                  ),
                 ],
               ),
             );
@@ -55,7 +62,9 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
                 final announcement = provider.announcements[index];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -76,22 +85,36 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
                             ),
                             if (announcement.author != null)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Colors.deepPurple.withOpacity(0.1),
+                                  color: Colors.deepPurple.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   announcement.author!,
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          DateFormat('MMM dd, yyyy • hh:mm a').format(announcement.date),
-                          style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7), fontSize: 12),
+                          DateFormat(
+                            'MMM dd, yyyy • hh:mm a',
+                          ).format(announcement.date),
+                          style: TextStyle(
+                            color: Theme.of(context).textTheme.bodySmall?.color
+                                ?.withValues(alpha: 0.7),
+                            fontSize: 12,
+                          ),
                         ),
                         const Divider(height: 24),
                         Text(

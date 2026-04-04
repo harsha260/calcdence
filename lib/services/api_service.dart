@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../constants.dart';
+import 'storage_service.dart';
 
 /// Custom exception for API errors
 class ApiException implements Exception {
@@ -55,7 +57,7 @@ class CampXApiService {
   Future<Map<String, dynamic>> login(String username, String password) async {
     try {
       final uri = Uri.parse(ApiConstants.loginUrl);
-      
+
       final body = jsonEncode({
         'loginId': username,
         'password': password,
@@ -67,56 +69,60 @@ class CampXApiService {
         'loginType': 'USER',
       });
 
-      print('CampX API: Attempting login to ${ApiConstants.loginUrl}');
-      
+      debugPrint('CampX API: Attempting login to ${ApiConstants.loginUrl}');
+
       final response = await _client
-          .post(
-            uri,
-            headers: _buildAuthHeaders(),
-            body: body,
-          )
+          .post(uri, headers: _buildAuthHeaders(), body: body)
           .timeout(AppConstants.connectionTimeout);
 
-      print('CampX API: Response status = ${response.statusCode}');
-      print('CampX API: Response headers = ${response.headers}');
-      print('CampX API: Response body = ${response.body}');
+      debugPrint('CampX API: Response status = ${response.statusCode}');
+      debugPrint('CampX API: Response headers = ${response.headers}');
+      debugPrint('CampX API: Response body = ${response.body}');
 
       // CampX returns 201 Created on successful login (not 200 OK)
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        
+
         // Extract session cookie from response headers
         final setCookieHeader = response.headers['set-cookie'];
         String? sessionKey;
-        
-        print('CampX API: Set-Cookie header = $setCookieHeader');
-        
+
+        debugPrint('CampX API: Set-Cookie header = $setCookieHeader');
+
         if (setCookieHeader != null) {
           // Simple regex to extract campx_session_key value
           final regex = RegExp(r'campx_session_key=([^;,]+)');
           final match = regex.firstMatch(setCookieHeader);
           if (match != null) {
             sessionKey = match.group(1);
-            print('CampX API: Found session key from cookie: $sessionKey');
+            debugPrint('CampX API: Found session key from cookie: $sessionKey');
           }
         }
 
         // Fallback 1: check session.token in JSON body (CampX response format)
-        if ((sessionKey == null || sessionKey.isEmpty) && data.containsKey('session')) {
+        if ((sessionKey == null || sessionKey.isEmpty) &&
+            data.containsKey('session')) {
           final session = data['session'];
           if (session is Map && session.containsKey('token')) {
             sessionKey = session['token']?.toString();
-            print('CampX API: Found session key from body session.token: $sessionKey');
+            debugPrint(
+              'CampX API: Found session key from body session.token: $sessionKey',
+            );
           }
         }
 
         // Fallback 2: top-level token/sessionKey/session_key keys
         if ((sessionKey == null || sessionKey.isEmpty)) {
-          if (data.containsKey('token') || data.containsKey('sessionKey') || data.containsKey('session_key')) {
-            final altKey = data['token'] ?? data['sessionKey'] ?? data['session_key'];
+          if (data.containsKey('token') ||
+              data.containsKey('sessionKey') ||
+              data.containsKey('session_key')) {
+            final altKey =
+                data['token'] ?? data['sessionKey'] ?? data['session_key'];
             if (altKey != null && altKey.toString().isNotEmpty) {
               sessionKey = altKey.toString();
-              print('CampX API: Found session key from body fallback: $sessionKey');
+              debugPrint(
+                'CampX API: Found session key from body fallback: $sessionKey',
+              );
             }
           }
         }
@@ -131,14 +137,12 @@ class CampXApiService {
         } else {
           return {
             'success': false,
-            'message': 'Session key not found in response. Raw response: ${response.body}',
+            'message':
+                'Session key not found in response. Raw response: ${response.body}',
           };
         }
       } else if (response.statusCode == 401) {
-        return {
-          'success': false,
-          'message': 'Invalid username or password',
-        };
+        return {'success': false, 'message': 'Invalid username or password'};
       } else {
         throw ApiException(
           'Login failed: ${response.body}',
@@ -160,7 +164,7 @@ class CampXApiService {
 
     try {
       final uri = Uri.parse('${ApiConstants.attendanceUrl}/$subjectCode');
-      
+
       final headers = _buildAuthHeaders();
       headers['Cookie'] = _buildCookieString();
 
@@ -169,9 +173,11 @@ class CampXApiService {
           .timeout(AppConstants.connectionTimeout);
 
       if (response.statusCode == 200) {
-        print('ApiService: Successfully fetched attendance for $subjectCode');
+        debugPrint(
+          'ApiService: Successfully fetched attendance for $subjectCode',
+        );
         final decoded = jsonDecode(response.body);
-        print('ApiService: Raw attendance body: ${response.body}');
+        debugPrint('ApiService: Raw attendance body: ${response.body}');
         // Always return a mutable Map with the subjectCode injected,
         // because the attendance endpoint response may not include it.
         final data = Map<String, dynamic>.from(
@@ -180,7 +186,10 @@ class CampXApiService {
         data['subjectCode'] = subjectCode;
         return data;
       } else if (response.statusCode == 401) {
-        throw ApiException('Session expired. Please login again.', statusCode: 401);
+        throw ApiException(
+          'Session expired. Please login again.',
+          statusCode: 401,
+        );
       } else {
         throw ApiException(
           'Failed to fetch attendance: ${response.body}',
@@ -195,12 +204,18 @@ class CampXApiService {
 
   /// Fetch the subject list for a given semester.
   /// Returns a list of subject maps with at least [id] and [name].
-  Future<List<Map<String, dynamic>>> getSubjects({int semNo = 4}) async {
+  Future<List<Map<String, dynamic>>> getSubjects({int? semNo}) async {
     if (_sessionKey == null) {
       throw ApiException('Not authenticated. Please login first.');
     }
 
     try {
+      // If semNo is not provided, fallback to fetching from storage
+      if (semNo == null) {
+        final storage = StorageService();
+        semNo = await storage.getSemester();
+      }
+
       final uri = Uri.parse('${ApiConstants.subjectsUrl}?semNo=$semNo');
       final headers = _buildAuthHeaders();
       headers['Cookie'] = _buildCookieString();
@@ -210,7 +225,9 @@ class CampXApiService {
           .timeout(AppConstants.connectionTimeout);
 
       if (response.statusCode == 200) {
-        print('ApiService: Successfully fetched subjects list. Body: ${response.body}');
+        debugPrint(
+          'ApiService: Successfully fetched subjects list. Body: ${response.body}',
+        );
         final decoded = jsonDecode(response.body);
         if (decoded is List) {
           return decoded
@@ -259,7 +276,9 @@ class CampXApiService {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        print('ApiService: Timetable raw sample: ${decoded is List ? (decoded.isNotEmpty ? decoded[0] : "Empty List") : decoded}');
+        debugPrint(
+          'ApiService: Timetable raw sample: ${decoded is List ? (decoded.isNotEmpty ? decoded[0] : "Empty List") : decoded}',
+        );
         if (decoded is List) {
           return decoded
               .whereType<Map>()
@@ -295,27 +314,24 @@ class CampXApiService {
     List<int> subjectCodes,
   ) async {
     final results = <Map<String, dynamic>>[];
-    
+
     for (final code in subjectCodes) {
       try {
         final data = await getSubjectAttendance(code);
         results.add(data);
       } catch (e) {
         // Continue with other subjects if one fails
-        results.add({
-          'subjectCode': code,
-          'error': e.toString(),
-        });
+        results.add({'subjectCode': code, 'error': e.toString()});
       }
     }
-    
+
     return results;
   }
 
   /// Check if session is valid
   Future<bool> validateSession() async {
     if (_sessionKey == null) return false;
-    
+
     try {
       // Try fetching a known subject to validate
       await getSubjectAttendance(0);
@@ -331,14 +347,19 @@ class CampXApiService {
   }
 
   /// Fetch announcements from the real CampX API
-  Future<List<Map<String, dynamic>>> getAnnouncements({int limit = 10, int skip = 0}) async {
+  Future<List<Map<String, dynamic>>> getAnnouncements({
+    int limit = 10,
+    int skip = 0,
+  }) async {
     if (_sessionKey == null) {
       throw ApiException('Not authenticated. Please login first.');
     }
 
     try {
-      final uri = Uri.parse('${ApiConstants.baseUrl}/student-api/feed/announcement?limit=$limit&skip=$skip&feedType=announcements');
-      
+      final uri = Uri.parse(
+        '${ApiConstants.baseUrl}/student-api/feed/announcement?limit=$limit&skip=$skip&feedType=announcements',
+      );
+
       final headers = _buildAuthHeaders();
       headers['Cookie'] = _buildCookieString();
 
@@ -351,14 +372,17 @@ class CampXApiService {
         if (decoded is List) {
           return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
         } else if (decoded is Map && decoded.containsKey('data')) {
-           final data = decoded['data'];
-           if (data is List) {
-             return data.map((e) => Map<String, dynamic>.from(e)).toList();
-           }
+          final data = decoded['data'];
+          if (data is List) {
+            return data.map((e) => Map<String, dynamic>.from(e)).toList();
+          }
         }
         return [];
       } else if (response.statusCode == 401) {
-        throw ApiException('Session expired. Please login again.', statusCode: 401);
+        throw ApiException(
+          'Session expired. Please login again.',
+          statusCode: 401,
+        );
       } else {
         throw ApiException(
           'Failed to fetch announcements: ${response.body}',

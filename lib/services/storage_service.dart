@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants.dart';
 
@@ -9,9 +10,7 @@ class StorageService {
   StorageService._internal();
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
@@ -22,12 +21,12 @@ class StorageService {
       return await call.timeout(
         const Duration(seconds: 5),
         onTimeout: () {
-          print('StorageService: Call timed out');
+          debugPrint('StorageService: Call timed out');
           return null;
         },
       );
     } catch (e) {
-      print('StorageService: Error during storage call: $e');
+      debugPrint('StorageService: Error during storage call: $e');
       return null;
     }
   }
@@ -60,6 +59,25 @@ class StorageService {
   /// Get saved session key
   Future<String?> getSessionKey() async {
     return await _withTimeout(_storage.read(key: ApiConstants.sessionKeyKey));
+  }
+
+  /// Save semester
+  Future<void> saveSemester(int semester) async {
+    await _storage.write(
+      key: ApiConstants.semesterKey,
+      value: semester.toString(),
+    );
+  }
+
+  /// Get saved semester, default to 4
+  Future<int> getSemester() async {
+    final val = await _withTimeout(
+      _storage.read(key: ApiConstants.semesterKey),
+    );
+    if (val != null) {
+      return int.tryParse(val) ?? 4;
+    }
+    return 4;
   }
 
   /// Check if credentials are saved

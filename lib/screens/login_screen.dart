@@ -36,9 +36,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success && mounted) {
       // Navigate to home screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } else if (mounted) {
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,27 +64,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Logo / App Title
-                  const Icon(
-                    Icons.school,
-                    size: 80,
-                    color: Colors.deepPurple,
-                  ),
+                  const Icon(Icons.school, size: 80, color: Colors.deepPurple),
                   const SizedBox(height: 16),
                   Text(
                     AppConstants.appName,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepPurple,
-                        ),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Track your attendance easily',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                        ),
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                    ),
                   ),
                   const SizedBox(height: 48),
 
@@ -186,8 +184,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Use your CampX credentials to login',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
-                        ),
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                    ),
                   ),
                 ],
               ),

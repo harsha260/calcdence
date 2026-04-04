@@ -40,18 +40,21 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
     final subject = widget.subject;
     final targetPct = _target;
     final tt = context.read<TimetableProvider>();
-    
+
     // 1. Bunk Calculator (True Projection)
     // How many upcoming classes can we skip before falling below target?
     int possibleBunks = 0;
     int currentAttendedB = subject.classesAttended;
     int currentConductedB = subject.totalClasses;
-    
+
     // Scan up to 90 days ahead
     for (int day = 1; day <= 90; day++) {
       final date = DateTime.now().add(Duration(days: day));
-      final classes = tt.periodsForDate(date).where((e) => e.subjectId == subject.subjectCode).length;
-      
+      final classes = tt
+          .periodsForDate(date)
+          .where((e) => e.subjectId == subject.subjectCode)
+          .length;
+
       for (int i = 0; i < classes; i++) {
         currentConductedB++;
         if ((currentAttendedB / currentConductedB * 100) >= targetPct) {
@@ -69,12 +72,15 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
     int currentAttendedR = subject.classesAttended;
     int currentConductedR = subject.totalClasses;
     int needed = 0;
-    
+
     if ((currentAttendedR / currentConductedR * 100) < targetPct) {
       for (int day = 1; day <= 90; day++) {
         final date = DateTime.now().add(Duration(days: day));
-        final classes = tt.periodsForDate(date).where((e) => e.subjectId == subject.subjectCode).length;
-        
+        final classes = tt
+            .periodsForDate(date)
+            .where((e) => e.subjectId == subject.subjectCode)
+            .length;
+
         for (int i = 0; i < classes; i++) {
           needed++;
           currentAttendedR++;
@@ -100,7 +106,8 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final subject = widget.subject;
-    final isAboveThreshold = subject.percentage >= _target; // Use _target directly
+    final isAboveThreshold =
+        subject.percentage >= _target; // Use _target directly
 
     return Scaffold(
       appBar: AppBar(
@@ -147,8 +154,8 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isAboveThreshold
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.red.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.red.withValues(alpha: 0.1),
                 border: Border.all(
                   color: isAboveThreshold ? Colors.green : Colors.red,
                   width: 4,
@@ -219,7 +226,12 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 24),
@@ -235,7 +247,9 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+            color: Theme.of(
+              context,
+            ).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
             fontSize: 10,
           ),
         ),
@@ -258,10 +272,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                 const SizedBox(width: 8),
                 const Text(
                   'Target Percentage',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ],
             ),
@@ -293,7 +304,10 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                     textAlign: TextAlign.center,
                     decoration: InputDecoration(
                       suffix: const Text('%'),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -332,7 +346,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
           });
         }
       },
-      selectedColor: Colors.deepPurple.withOpacity(0.2),
+      selectedColor: Colors.deepPurple.withValues(alpha: 0.2),
     );
   }
 
@@ -342,10 +356,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
       children: [
         const Text(
           'Attendance Calculators',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         const SizedBox(height: 12),
 
@@ -406,7 +417,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: color),
@@ -426,7 +437,9 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                       Text(
                         subtitle,
                         style: TextStyle(
-                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
                           fontSize: 12,
                         ),
                       ),
@@ -440,7 +453,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -456,7 +469,9 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                   Text(
                     resultLabel,
                     style: TextStyle(
-                      color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8),
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.color?.withValues(alpha: 0.8),
                       fontSize: 12,
                     ),
                   ),

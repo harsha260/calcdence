@@ -14,19 +14,26 @@ import 'providers/todo_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize notifications with a timeout to prevent absolute freeze
-  print('main: Initializing NotificationService...');
-  await NotificationService().initialize().timeout(
-    const Duration(seconds: 10),
-    onTimeout: () => print('main: NotificationService initialization timed out'),
-  ).catchError((e) => print('main: NotificationService error: $e'));
 
-  print('main: Starting app...');
+  await dotenv.load(fileName: ".env");
+
+  // Initialize notifications with a timeout to prevent absolute freeze
+  debugPrint('main: Initializing NotificationService...');
+  await NotificationService()
+      .initialize()
+      .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () =>
+            debugPrint('main: NotificationService initialization timed out'),
+      )
+      .catchError((e) => debugPrint('main: NotificationService error: $e'));
+
+  debugPrint('main: Starting app...');
   runApp(const CampXAttendanceApp());
 }
 
@@ -44,20 +51,26 @@ class CampXAttendanceApp extends StatelessWidget {
           update: (context, api, previous) => previous ?? AuthProvider(api),
         ),
         ChangeNotifierProxyProvider<CampXApiService, AttendanceProvider>(
-          create: (context) => AttendanceProvider(context.read<CampXApiService>()),
-          update: (context, api, previous) => previous ?? AttendanceProvider(api),
+          create: (context) =>
+              AttendanceProvider(context.read<CampXApiService>()),
+          update: (context, api, previous) =>
+              previous ?? AttendanceProvider(api),
         ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => TargetProvider()),
         ChangeNotifierProxyProvider<CampXApiService, TimetableProvider>(
-          create: (context) => TimetableProvider(context.read<CampXApiService>()),
-          update: (context, api, previous) => previous ?? TimetableProvider(api),
+          create: (context) =>
+              TimetableProvider(context.read<CampXApiService>()),
+          update: (context, api, previous) =>
+              previous ?? TimetableProvider(api),
         ),
         ChangeNotifierProvider(create: (_) => CollegeDayProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProxyProvider<CampXApiService, AnnouncementProvider>(
-          create: (context) => AnnouncementProvider(context.read<CampXApiService>()),
-          update: (context, api, previous) => previous ?? AnnouncementProvider(api),
+          create: (context) =>
+              AnnouncementProvider(context.read<CampXApiService>()),
+          update: (context, api, previous) =>
+              previous ?? AnnouncementProvider(api),
         ),
         ChangeNotifierProvider(create: (_) => TodoProvider()),
       ],
@@ -77,22 +90,29 @@ class CampXAttendanceApp extends StatelessWidget {
             cardTheme: CardThemeData(
               elevation: 2,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
                 elevation: 2,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
             inputDecorationTheme: InputDecorationTheme(
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           ),
           // ── Dark theme ─────────────────────────────────────────────────
@@ -106,22 +126,29 @@ class CampXAttendanceApp extends StatelessWidget {
             cardTheme: CardThemeData(
               elevation: 2,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
                 elevation: 2,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
             inputDecorationTheme: InputDecorationTheme(
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           ),
           home: const AuthWrapper(),
@@ -130,7 +157,6 @@ class CampXAttendanceApp extends StatelessWidget {
     );
   }
 }
-
 
 /// Auth Wrapper - Handles authentication state and routing
 class AuthWrapper extends StatefulWidget {
@@ -160,7 +186,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
         // Show loading screen while initializing
-        if (authProvider.state == AuthState.initial || 
+        if (authProvider.state == AuthState.initial ||
             authProvider.state == AuthState.loading) {
           return const Scaffold(
             body: Center(

@@ -35,26 +35,37 @@ class Subject {
     }
 
     // For Anits/CampX, 'id' is the unique integer we use for matching
-    final rawCode = json['id'] ?? json['subjectCode'] ?? json['subject_code'] ?? json['courseId'] ?? 0;
+    final rawCode =
+        json['id'] ??
+        json['subjectCode'] ??
+        json['subject_code'] ??
+        json['courseId'] ??
+        0;
     final code = toInt(rawCode);
 
     // Prefer our hardcoded name; fall back to API name or code
-    final resolvedName = AppConstants.subjectNames[code] ??
+    final resolvedName =
+        AppConstants.fallbackSubjectNames[code] ??
         json['name']?.toString() ??
         json['subjectName']?.toString() ??
         json['subject_name']?.toString() ??
         'Subject $code';
 
-    final attended = toInt(json['attended'] ?? json['present'] ?? json['subject_attended_count']);
-    final total = toInt(json['total'] ?? json['totalClasses'] ?? json['subject_total_count']);
-    
+    final attended = toInt(
+      json['attended'] ?? json['present'] ?? json['subject_attended_count'],
+    );
+    final total = toInt(
+      json['total'] ?? json['totalClasses'] ?? json['subject_total_count'],
+    );
+
     // Calculate percentage if not provided or 0.0
     double percentage = toDouble(json['percentage']);
     if (percentage == 0.0 && total > 0) {
       percentage = (attended / total) * 100;
     }
 
-    final type = (json['subjectType']?['type'] ?? json['type'] ?? 'Theory').toString();
+    final type = (json['subjectType']?['type'] ?? json['type'] ?? 'Theory')
+        .toString();
 
     return Subject(
       subjectCode: code,
@@ -68,12 +79,12 @@ class Subject {
 
   /// Convert to JSON
   Map<String, dynamic> toJson() => {
-        'subjectCode': subjectCode,
-        'subjectName': subjectName,
-        'classesAttended': classesAttended,
-        'totalClasses': totalClasses,
-        'percentage': percentage,
-      };
+    'subjectCode': subjectCode,
+    'subjectName': subjectName,
+    'classesAttended': classesAttended,
+    'totalClasses': totalClasses,
+    'percentage': percentage,
+  };
 
   /// Check if attendance is above threshold (75%)
   bool get isAboveThreshold => percentage >= 75.0;

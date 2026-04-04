@@ -1,12 +1,14 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// API Constants for CampX
 class ApiConstants {
   // Base URLs
-  static const String baseUrl = 'https://api.campx.in';
-  static const String loginUrl = '$baseUrl/auth-server/auth-v2/login';
-  static const String attendanceUrl =
+  static String get baseUrl => dotenv.env['CAMPX_API_BASE_URL'] ?? '';
+  static String get loginUrl => '$baseUrl/auth-server/auth-v2/login';
+  static String get attendanceUrl =>
       '$baseUrl/student-api/student-attendance/subject-attendance-web';
-  static const String subjectsUrl = '$baseUrl/student-api/subjects';
-  static const String timetableUrl = '$baseUrl/student-api/classroom-timetables';
+  static String get subjectsUrl => '$baseUrl/student-api/subjects';
+  static String get timetableUrl => '$baseUrl/student-api/classroom-timetables';
 
   // Institution headers
   static const String institutionCode = 'anits';
@@ -25,6 +27,7 @@ class ApiConstants {
   static const String usernameKey = 'campx_username';
   static const String passwordKey = 'campx_password';
   static const String sessionKeyKey = 'campx_session_key';
+  static const String semesterKey = 'campx_semester_key';
 }
 
 /// App-wide constants
@@ -35,9 +38,21 @@ class AppConstants {
 
   /// Fallback subject codes to fetch if API fails completely
   static const List<int> fallbackSubjectCodes = [
-    1332, 1337, 1343, 1344, 1345,
-    1346, 1347, 1348, 1349, 1350,
-    1438, 1439, 1658, 1749, 1776,
+    1332,
+    1337,
+    1343,
+    1344,
+    1345,
+    1346,
+    1347,
+    1348,
+    1349,
+    1350,
+    1438,
+    1439,
+    1658,
+    1749,
+    1776,
   ];
 
   /// Fallback subject names if API is unavailable

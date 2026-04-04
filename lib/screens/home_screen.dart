@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import 'package:shimmer/shimmer.dart';
 import '../providers/attendance_provider.dart';
-import '../providers/theme_provider.dart';
 import '../providers/target_provider.dart';
 import '../providers/timetable_provider.dart';
 import '../providers/college_day_provider.dart';
@@ -10,7 +9,6 @@ import '../providers/notification_provider.dart';
 import '../constants.dart';
 import '../models/subject.dart';
 import '../models/timetable_entry.dart';
-import 'login_screen.dart';
 import 'subject_detail_screen.dart';
 import 'overall_detail_screen.dart';
 import 'settings_screen.dart';
@@ -29,7 +27,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
-  String _selectedFilter = 'All'; // All, Theory, Practical, High, Low, Below Target
+  String _selectedFilter =
+      'All'; // All, Theory, Practical, High, Low, Below Target
 
   @override
   void initState() {
@@ -38,35 +37,40 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshData() async {
-    print('HomeScreen: _refreshData triggered');
+    debugPrint('HomeScreen: _refreshData triggered');
     final attendanceProv = context.read<AttendanceProvider>();
     final collegeDay = context.read<CollegeDayProvider>();
     final notifProv = context.read<NotificationProvider>();
-    
+
     // Load local settings first
-    await Future.wait([
-      collegeDay.loadToday(),
-      notifProv.loadSettings(),
-    ]);
-    print('HomeScreen: CollegeDay isGoingToday: ${collegeDay.isGoingToday}');
+    await Future.wait([collegeDay.loadToday(), notifProv.loadSettings()]);
+    debugPrint(
+      'HomeScreen: CollegeDay isGoingToday: ${collegeDay.isGoingToday}',
+    );
 
     await attendanceProv.fetchAttendance();
-    print('HomeScreen: Attendance fetch complete. hasData: ${attendanceProv.hasData}');
-    
+    debugPrint(
+      'HomeScreen: Attendance fetch complete. hasData: ${attendanceProv.hasData}',
+    );
+
     // Once attendance (and nameMap) is loaded, fetch timetable
     if (attendanceProv.hasData) {
-      print('HomeScreen: Attendance data available, fetching timetable.');
+      debugPrint('HomeScreen: Attendance data available, fetching timetable.');
       final timetableProv = context.read<TimetableProvider>();
       await timetableProv.fetchTimetable(nameMap: attendanceProv.nameMap);
-      
+
       // Sync real subject-wise session logs to the timetable
       timetableProv.updateSpecificEntries(attendanceProv.allSessions);
-      
-      print('HomeScreen: Timetable fetch complete. Sessions synced: ${attendanceProv.allSessions.length}');
-      
+
+      debugPrint(
+        'HomeScreen: Timetable fetch complete. Sessions synced: ${attendanceProv.allSessions.length}',
+      );
+
       // If user is going to college today, schedule notifications
       if (collegeDay.isGoingToday && timetableProv.isLoaded) {
-        print('HomeScreen: User is going to college, auto-scheduling notifications for today.');
+        debugPrint(
+          'HomeScreen: User is going to college, auto-scheduling notifications for today.',
+        );
         await NotificationService().scheduleAllForDate(
           date: DateTime.now(),
           entries: timetableProv.todayPeriods,
@@ -74,41 +78,12 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } else {
-      print('HomeScreen: No attendance data, skipping timetable fetch.');
+      debugPrint('HomeScreen: No attendance data, skipping timetable fetch.');
     }
   }
 
   Future<void> _handleRefresh() async {
     await _refreshData();
-  }
-
-  void _handleLogout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await context.read<AuthProvider>().logout();
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
-    }
   }
 
   @override
@@ -131,27 +106,27 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.check_circle_outline),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const TodoScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const TodoScreen()));
             },
             tooltip: 'To-Do List',
           ),
           IconButton(
             icon: const Icon(Icons.calendar_month),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CalendarScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const CalendarScreen()));
             },
             tooltip: 'Calendar',
           ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
             tooltip: 'Settings',
           ),
@@ -160,42 +135,16 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Consumer<AttendanceProvider>(
         builder: (context, attendanceProvider, _) {
           if (attendanceProvider.isLoading && !attendanceProvider.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return _buildShimmerLoading();
           }
 
           if (attendanceProvider.state == AttendanceState.error &&
               !attendanceProvider.hasData) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    attendanceProvider.errorMessage ?? 'Failed to load attendance',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _handleRefresh,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
+            return _buildErrorState(attendanceProvider.errorMessage);
           }
 
           if (!attendanceProvider.hasData) {
-            return const Center(
-              child: Text('No attendance data available'),
-            );
+            return const Center(child: Text('No attendance data available'));
           }
 
           final attendance = attendanceProvider.attendance!;
@@ -207,7 +156,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Daily Status Card
                 SliverToBoxAdapter(
                   child: Consumer<CollegeDayProvider>(
-                    builder: (context, collegeDay, _) => _buildDailyStatusCard(collegeDay),
+                    builder: (context, collegeDay, _) =>
+                        _buildDailyStatusCard(collegeDay),
                   ),
                 ),
 
@@ -224,20 +174,41 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                    child: _buildOverallCard(attendance.overallPercentage,
-                        attendance.totalAttended, attendance.totalConducted),
+                    child: _buildOverallCard(
+                      attendance.overallPercentage,
+                      attendance.totalAttended,
+                      attendance.totalConducted,
+                    ),
                   ),
                 ),
 
-
                 // Bunk Recommender Card
                 SliverToBoxAdapter(
-                  child: Consumer3<AttendanceProvider, TimetableProvider, TargetProvider>(
-                    builder: (context, attendanceProv, timetableProv, targetProv, _) {
-                      if (!attendanceProv.hasData || !timetableProv.isLoaded) return const SizedBox.shrink();
-                      return _buildBunkRecommender(attendanceProv, timetableProv, targetProv);
-                    },
-                  ),
+                  child:
+                      Consumer3<
+                        AttendanceProvider,
+                        TimetableProvider,
+                        TargetProvider
+                      >(
+                        builder:
+                            (
+                              context,
+                              attendanceProv,
+                              timetableProv,
+                              targetProv,
+                              _,
+                            ) {
+                              if (!attendanceProv.hasData ||
+                                  !timetableProv.isLoaded) {
+                                return const SizedBox.shrink();
+                              }
+                              return _buildBunkRecommender(
+                                attendanceProv,
+                                timetableProv,
+                                targetProv,
+                              );
+                            },
+                      ),
                 ),
 
                 // Search and Filter Bar
@@ -256,9 +227,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 0,
+                            ),
                           ),
-                          onChanged: (value) => setState(() => _searchQuery = value),
+                          onChanged: (value) =>
+                              setState(() => _searchQuery = value),
                         ),
                         const SizedBox(height: 12),
                         SingleChildScrollView(
@@ -294,55 +268,62 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Subject List
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                 // Subject Cards
-                sliver: Consumer2<AttendanceProvider, TargetProvider>(
-                  builder: (context, attendanceProv, targetProv, _) {
-                    var subjects = attendanceProv.attendance?.subjects ?? [];
-                    
-                    // Apply Search
-                    if (_searchQuery.isNotEmpty) {
-                      subjects = subjects.where((s) => s.subjectName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-                    }
-                    
-                    // Apply Filter
-                    final target = targetProv.target;
-                    switch (_selectedFilter) {
-                      case 'High %':
-                        subjects = List.from(subjects)..sort((a, b) => b.percentage.compareTo(a.percentage));
-                        break;
-                      case 'Low %':
-                        subjects = List.from(subjects)..sort((a, b) => a.percentage.compareTo(b.percentage));
-                        break;
-                      case 'Below Target':
-                        subjects = subjects.where((s) => s.percentage < target).toList();
-                        break;
-                    }
+                  // Subject Cards
+                  sliver: Consumer2<AttendanceProvider, TargetProvider>(
+                    builder: (context, attendanceProv, targetProv, _) {
+                      var subjects = attendanceProv.attendance?.subjects ?? [];
 
-                    if (subjects.isEmpty) {
-                      return const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Text('No subjects found'),
-                        ),
-                      );
-                    }
+                      // Apply Search
+                      if (_searchQuery.isNotEmpty) {
+                        subjects = subjects
+                            .where(
+                              (s) => s.subjectName.toLowerCase().contains(
+                                _searchQuery.toLowerCase(),
+                              ),
+                            )
+                            .toList();
+                      }
 
-                    return SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
+                      // Apply Filter
+                      final target = targetProv.target;
+                      switch (_selectedFilter) {
+                        case 'High %':
+                          subjects = List.from(subjects)
+                            ..sort(
+                              (a, b) => b.percentage.compareTo(a.percentage),
+                            );
+                          break;
+                        case 'Low %':
+                          subjects = List.from(subjects)
+                            ..sort(
+                              (a, b) => a.percentage.compareTo(b.percentage),
+                            );
+                          break;
+                        case 'Below Target':
+                          subjects = subjects
+                              .where((s) => s.percentage < target)
+                              .toList();
+                          break;
+                      }
+
+                      if (subjects.isEmpty) {
+                        return const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(child: Text('No subjects found')),
+                        );
+                      }
+
+                      return SliverList(
+                        delegate: SliverChildBuilderDelegate((context, index) {
                           final subject = subjects[index];
                           return _buildSubjectCard(subject);
-                        },
-                        childCount: subjects.length,
-                      ),
-                    );
-                  },
-                ),
+                        }, childCount: subjects.length),
+                      );
+                    },
+                  ),
                 ),
 
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: 24),
-                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
             ),
           );
@@ -351,10 +332,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildOverallCard(
-      double percentage, int attended, int conducted) {
+  Widget _buildOverallCard(double percentage, int attended, int conducted) {
     final isAboveThreshold = percentage >= AppConstants.attendanceThreshold;
-    
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(24),
@@ -369,7 +349,9 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: (isAboveThreshold ? Colors.green : Colors.red).withOpacity(0.3),
+            color: (isAboveThreshold ? Colors.green : Colors.red).withValues(
+              alpha: 0.3,
+            ),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -397,16 +379,13 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           Text(
             '$attended / $conducted classes attended',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -421,10 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           const Text(
             'Tap for calculator →',
-            style: TextStyle(
-              color: Colors.white60,
-              fontSize: 11,
-            ),
+            style: TextStyle(color: Colors.white60, fontSize: 11),
           ),
         ],
       ),
@@ -443,7 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedFilter = label;
           });
         },
-        selectedColor: Colors.deepPurple.withOpacity(0.2),
+        selectedColor: Colors.deepPurple.withValues(alpha: 0.2),
         checkmarkColor: Colors.deepPurple,
         labelStyle: TextStyle(
           color: isSelected ? Colors.deepPurple : null,
@@ -458,10 +434,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       elevation: 0,
-      color: Colors.deepPurple.withOpacity(0.05),
+      color: Colors.deepPurple.withValues(alpha: 0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.deepPurple.withOpacity(0.1)),
+        side: BorderSide(color: Colors.deepPurple.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -482,7 +458,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Text(
                     isGoing ? "Notifications enabled" : "Notifications muted",
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                    ),
                   ),
                 ],
               ),
@@ -523,14 +504,17 @@ class _HomeScreenState extends State<HomeScreen> {
     final target = targetProv.target;
     final List<Map<String, dynamic>> tips = [];
     final List<TimetableEntry> sortedToday = List.from(today)
-      ..sort((a, b) => a.startTime.padLeft(5, '0').compareTo(b.startTime.padLeft(5, '0')));
+      ..sort(
+        (a, b) =>
+            a.startTime.padLeft(5, '0').compareTo(b.startTime.padLeft(5, '0')),
+      );
 
     int i = 0;
     while (i < sortedToday.length) {
       final period = sortedToday[i];
       final subjectId = period.subjectId;
       final subject = attendanceProv.getSubjectByCode(subjectId);
-      
+
       if (subject == null) {
         i++;
         continue;
@@ -552,7 +536,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       String periodLabel = 'Period ${period.period}';
       if (count > 1) {
-        periodLabel = 'Periods ${period.period}-${sortedToday[j-1].period}';
+        periodLabel = 'Periods ${period.period}-${sortedToday[j - 1].period}';
       }
 
       tips.add({
@@ -591,7 +575,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
               return Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Container(
                   width: 160,
                   padding: const EdgeInsets.all(12),
@@ -603,20 +589,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         scrollDirection: Axis.horizontal,
                         child: Text(
                           tip['name'],
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
                           Icon(
-                            isSafe ? Icons.check_circle_outline : Icons.warning_amber_rounded,
+                            isSafe
+                                ? Icons.check_circle_outline
+                                : Icons.warning_amber_rounded,
                             size: 14,
                             color: isSafe ? Colors.green : Colors.red,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isSafe ? 'Safe (${percentageIfBunked.toStringAsFixed(1)}%)' : 'Risky (${percentageIfBunked.toStringAsFixed(1)}%)',
+                            isSafe
+                                ? 'Safe (${percentageIfBunked.toStringAsFixed(1)}%)'
+                                : 'Risky (${percentageIfBunked.toStringAsFixed(1)}%)',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -628,7 +621,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 4),
                       Text(
                         '${tip['label']} • ${tip['time']}',
-                        style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6)),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                        ),
                       ),
                     ],
                   ),
@@ -645,13 +643,11 @@ class _HomeScreenState extends State<HomeScreen> {
     // Determine color based on target
     final target = context.read<TargetProvider>().target;
     final isAboveThreshold = subject.percentage >= target;
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
@@ -672,8 +668,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isAboveThreshold
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.red.withValues(alpha: 0.1),
                   border: Border.all(
                     color: isAboveThreshold ? Colors.green : Colors.red,
                     width: 3,
@@ -711,7 +707,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       'Code: ${subject.subjectCode}',
                       style: TextStyle(
-                        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
+                        color: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                         fontSize: 12,
                       ),
                     ),
@@ -741,7 +739,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         ' / ${subject.totalClasses}',
                         style: TextStyle(
-                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -754,8 +754,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: isAboveThreshold
-                          ? Colors.green.withOpacity(0.1)
-                          : Colors.red.withOpacity(0.1),
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.red.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -771,10 +771,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right,
-                color: Theme.of(context).dividerColor,
-              ),
+              Icon(Icons.chevron_right, color: Theme.of(context).dividerColor),
             ],
           ),
         ),
@@ -782,22 +779,127 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickLinkCard(BuildContext context, {required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
+  Widget _buildShimmerLoading() {
+    final baseColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade300;
+    final highlightColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade700
+        : Colors.grey.shade100;
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
+      child: ListView(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
+        children: [
+          // Daily Status Card Placeholder
+          Container(
+            height: 72,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Overall Attendance Card Placeholder
+          Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Bunk Recommender Card Placeholder
+          Container(
+            height: 140,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Search and Filter Placeholder
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Subject Header Placeholder
+          Container(
+            height: 24,
+            width: 150,
+            margin: const EdgeInsets.only(right: 200, bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          // Subject List Placeholders
+          for (int i = 0; i < 5; i++) ...[
+            const SizedBox(height: 12),
+            Container(
+              height: 88,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String? errorMessage) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 80,
+              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.7),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Oops! Something went wrong',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              errorMessage ??
+                  'We couldn\'t fetch your attendance data. Please check your connection and try again.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.color?.withValues(alpha: 0.8),
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: _handleRefresh,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+            ),
           ],
         ),
       ),

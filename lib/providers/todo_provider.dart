@@ -7,17 +7,9 @@ class TodoItem {
   final String title;
   final bool isDone;
 
-  TodoItem({
-    required this.id,
-    required this.title,
-    this.isDone = false,
-  });
+  TodoItem({required this.id, required this.title, this.isDone = false});
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'isDone': isDone,
-  };
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'isDone': isDone};
 
   factory TodoItem.fromJson(Map<String, dynamic> json) => TodoItem(
     id: json['id'],

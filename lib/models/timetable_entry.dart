@@ -1,15 +1,17 @@
+import 'package:flutter/foundation.dart';
+
 /// Represents a single period in the classroom timetable.
 class TimetableEntry {
   final int id;
-  final String day;      // e.g. "MONDAY", "TUESDAY", ...
-  final int period;      // 1-based period number
+  final String day; // e.g. "MONDAY", "TUESDAY", ...
+  final int period; // 1-based period number
   final int subjectId;
   final String subjectName;
   final String startTime; // e.g. "09:00"
-  final String endTime;   // e.g. "09:50"
+  final String endTime; // e.g. "09:50"
   final String? sessionDate; // e.g. "2026-02-25" (ISO format)
-  final bool? isAttended;    // true=attended, false=absent, null=Upcoming/Unknown
-  final String? topic;       // Session topic from portal
+  final bool? isAttended; // true=attended, false=absent, null=Upcoming/Unknown
+  final String? topic; // Session topic from portal
 
   const TimetableEntry({
     required this.id,
@@ -41,9 +43,17 @@ class TimetableEntry {
 
     // Day: might be "MONDAY" / "Monday" / 1-7 integer
     String day;
-    final rawDay = json['day'] ?? json['dayOfWeek'] ?? json['weekDay'] ?? json['day_name'] ?? json['weekday'] ?? '';
+    final rawDay =
+        json['day'] ??
+        json['dayOfWeek'] ??
+        json['weekDay'] ??
+        json['day_name'] ??
+        json['weekday'] ??
+        '';
     final sessionDate = (json['sessionDate'] ?? json['date'])?.toString() ?? '';
-    print('TimetableEntry: Parsing. rawDay: "$rawDay", sessionDate: "$sessionDate"');
+    debugPrint(
+      'TimetableEntry: Parsing. rawDay: "$rawDay", sessionDate: "$sessionDate"',
+    );
 
     if (rawDay is int) {
       const dayNames = [
@@ -54,20 +64,27 @@ class TimetableEntry {
         'THURSDAY',
         'FRIDAY',
         'SATURDAY',
-        'SUNDAY'
+        'SUNDAY',
       ];
       day = rawDay >= 1 && rawDay <= 7 ? dayNames[rawDay] : 'MONDAY';
     } else if (rawDay.toString().isNotEmpty) {
       final s = rawDay.toString().toUpperCase();
       if (s.startsWith('MON')) {
         day = 'MONDAY';
-      } else if (s.startsWith('TUE')) day = 'TUESDAY';
-      else if (s.startsWith('WED')) day = 'WEDNESDAY';
-      else if (s.startsWith('THU')) day = 'THURSDAY';
-      else if (s.startsWith('FRI')) day = 'FRIDAY';
-      else if (s.startsWith('SAT')) day = 'SATURDAY';
-      else if (s.startsWith('SUN')) day = 'SUNDAY';
-      else day = 'MONDAY';
+      } else if (s.startsWith('TUE'))
+        day = 'TUESDAY';
+      else if (s.startsWith('WED'))
+        day = 'WEDNESDAY';
+      else if (s.startsWith('THU'))
+        day = 'THURSDAY';
+      else if (s.startsWith('FRI'))
+        day = 'FRIDAY';
+      else if (s.startsWith('SAT'))
+        day = 'SATURDAY';
+      else if (s.startsWith('SUN'))
+        day = 'SUNDAY';
+      else
+        day = 'MONDAY';
     } else {
       day = 'MONDAY';
     }
@@ -75,7 +92,8 @@ class TimetableEntry {
     if (sessionDate.isNotEmpty) {
       try {
         final dt = DateTime.parse(sessionDate);
-        formattedSessionDate = "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+        formattedSessionDate =
+            "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
         const dayNames = [
           '',
           'MONDAY',
@@ -84,40 +102,54 @@ class TimetableEntry {
           'THURSDAY',
           'FRIDAY',
           'SATURDAY',
-          'SUNDAY'
+          'SUNDAY',
         ];
-        day = dayNames[dt.weekday]; // Overwrite day from sessionDate if available
-        print('TimetableEntry: Derived day $day and date $formattedSessionDate from sessionDate $sessionDate');
+        day =
+            dayNames[dt.weekday]; // Overwrite day from sessionDate if available
+        debugPrint(
+          'TimetableEntry: Derived day $day and date $formattedSessionDate from sessionDate $sessionDate',
+        );
       } catch (e) {
-        print('TimetableEntry: Error parsing sessionDate: $e');
+        debugPrint('TimetableEntry: Error parsing sessionDate: $e');
       }
     }
-    print('TimetableEntry: Resolved day to: $day');
+    debugPrint('TimetableEntry: Resolved day to: $day');
 
-    int period = toInt(json['period'] ?? json['periodNo'] ?? json['slotNo'] ?? json['slot'] ?? 0);
+    int period = toInt(
+      json['period'] ?? json['periodNo'] ?? json['slotNo'] ?? json['slot'] ?? 0,
+    );
 
-    final subjectId = toInt(json['subjectId'] ?? json['subject_id'] ?? json['courseId']);
+    final subjectId = toInt(
+      json['subjectId'] ?? json['subject_id'] ?? json['courseId'],
+    );
 
-    final apiName =
-        (json['subjectName'] ?? json['subject']?['name'] ?? '').toString();
-    final subjectName = nameMap[subjectId] ??
+    final apiName = (json['subjectName'] ?? json['subject']?['name'] ?? '')
+        .toString();
+    final subjectName =
+        nameMap[subjectId] ??
         (apiName.isNotEmpty ? apiName : 'Subject $subjectId');
 
     // Times — try multiple field names
-    String startTime = (json['startTime'] ??
-        json['start_time'] ??
-        json['fromTime'] ??
-        (period > 0 ? _periodToTime(period, isStart: true) : '08:50')).toString();
-    String endTime = (json['endTime'] ??
-        json['end_time'] ??
-        json['toTime'] ??
-        (period > 0 ? _periodToTime(period, isStart: false) : '09:40')).toString();
+    String startTime =
+        (json['startTime'] ??
+                json['start_time'] ??
+                json['fromTime'] ??
+                (period > 0 ? _periodToTime(period, isStart: true) : '08:50'))
+            .toString();
+    String endTime =
+        (json['endTime'] ??
+                json['end_time'] ??
+                json['toTime'] ??
+                (period > 0 ? _periodToTime(period, isStart: false) : '09:40'))
+            .toString();
 
     // Map timeline fields to our model
     if (json.containsKey('orderNumber')) {
-      period = (json['orderNumber'] is int) ? json['orderNumber'] : int.tryParse(json['orderNumber'].toString()) ?? 1;
+      period = (json['orderNumber'] is int)
+          ? json['orderNumber']
+          : int.tryParse(json['orderNumber'].toString()) ?? 1;
     }
-    
+
     // Safer time parsing
     if (json.containsKey('fromTime')) {
       final ft = json['fromTime'].toString();
@@ -138,14 +170,15 @@ class TimetableEntry {
     // CRITICAL: For Anits/CampX, 'status' is often used where false=Present, true=Absent.
     // We prioritize other specific attendance keys first.
     final hasStatus = json.containsKey('status');
-    final rawAtt = json['isAttended'] ?? 
-                 json['present'] ?? 
-                 json['attendanceStatus'] ?? 
-                 json['attendance_status'] ??
-                 json['isPresent'] ??
-                 json['attended'] ??
-                 json['is_present'] ??
-                 json['status'];
+    final rawAtt =
+        json['isAttended'] ??
+        json['present'] ??
+        json['attendanceStatus'] ??
+        json['attendance_status'] ??
+        json['isPresent'] ??
+        json['attended'] ??
+        json['is_present'] ??
+        json['status'];
 
     bool? attended;
     if (rawAtt != null) {
@@ -158,23 +191,35 @@ class TimetableEntry {
         }
       } else {
         final s = rawAtt.toString().toLowerCase();
-        if (s == 'present' || s == '1' || s == 'true' || s == 'p' || s == 'attended') {
+        if (s == 'present' ||
+            s == '1' ||
+            s == 'true' ||
+            s == 'p' ||
+            s == 'attended') {
           attended = true;
-        } else if (s == 'absent' || s == '0' || s == 'false' || s == 'a' || s == 'missed' || s == 'not_attended') {
+        } else if (s == 'absent' ||
+            s == '0' ||
+            s == 'false' ||
+            s == 'a' ||
+            s == 'missed' ||
+            s == 'not_attended') {
           attended = false;
         }
       }
     }
-    
+
     // Debug: If everything is absent, let's see why
     if (sessionDate.toString().contains('2026-02') && rawAtt != null) {
-      print('TimetableEntry: DEBUG session $sessionDate $subjectName (P$period). rawAtt: $rawAtt (${rawAtt.runtimeType}) -> attended: $attended. Keys: ${json.keys.toList()}');
+      debugPrint(
+        'TimetableEntry: DEBUG session $sessionDate $subjectName (P$period). rawAtt: $rawAtt (${rawAtt.runtimeType}) -> attended: $attended. Keys: ${json.keys.toList()}',
+      );
       // If still finding issues, uncomment next line for full dump
-      // print('TimetableEntry: FULL JSON: $json');
+      // debugPrint('TimetableEntry: FULL JSON: $json');
     }
 
     // Handle topics list from timeline
-    dynamic rawTopic = json['topic'] ?? json['sessionTopic'] ?? json['content_covered'];
+    dynamic rawTopic =
+        json['topic'] ?? json['sessionTopic'] ?? json['content_covered'];
     if (rawTopic == null && json['topics'] is List) {
       rawTopic = (json['topics'] as List).join(', ');
     }
@@ -194,13 +239,29 @@ class TimetableEntry {
     );
   }
 
+  /// Convert to JSON map (for caching)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'day': day,
+      'period': period,
+      'subjectId': subjectId,
+      'subjectName': subjectName,
+      'startTime': startTime,
+      'endTime': endTime,
+      'sessionDate': sessionDate,
+      'isAttended': isAttended,
+      'topic': topic,
+    };
+  }
+
   /// Deduce period number for ANITS slots based on start time
   static int _startTimeToPeriod(String t) {
     try {
       // Handle "08:50", "8:50", "08:50:00"
       final parts = t.split(':');
       if (parts.length < 2) return 0;
-      
+
       final hour = int.parse(parts[0]);
       final minute = int.parse(parts[1]);
       final totalMinutes = hour * 60 + minute;
@@ -213,7 +274,7 @@ class TimetableEntry {
       // P5: 13:00 (780)
       // P6: 13:50 (830)
       // P7: 14:40 (880)
-      
+
       if (totalMinutes >= 510 && totalMinutes <= 540) return 1;
       if (totalMinutes > 540 && totalMinutes <= 590) return 2;
       if (totalMinutes > 590 && totalMinutes <= 640) return 3;
@@ -222,7 +283,7 @@ class TimetableEntry {
       if (totalMinutes > 800 && totalMinutes <= 850) return 6;
       if (totalMinutes > 850 && totalMinutes <= 900) return 7;
     } catch (e) {
-      print('TimetableEntry: Deduction error: $e');
+      debugPrint('TimetableEntry: Deduction error: $e');
     }
     return 0;
   }
@@ -263,8 +324,13 @@ class TimetableEntry {
   /// Weekday integer matching DateTime.weekday (1=Mon … 7=Sun)
   int get weekday {
     const map = {
-      'MONDAY': 1, 'TUESDAY': 2, 'WEDNESDAY': 3,
-      'THURSDAY': 4, 'FRIDAY': 5, 'SATURDAY': 6, 'SUNDAY': 7,
+      'MONDAY': 1,
+      'TUESDAY': 2,
+      'WEDNESDAY': 3,
+      'THURSDAY': 4,
+      'FRIDAY': 5,
+      'SATURDAY': 6,
+      'SUNDAY': 7,
     };
     return map[day] ?? 1;
   }

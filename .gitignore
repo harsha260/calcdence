@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+analysis_errors.txt
+final_analysis.txt
+.idea/
+*.iml
+attandance_manager.iml

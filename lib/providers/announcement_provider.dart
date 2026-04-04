@@ -35,18 +35,24 @@ class AnnouncementProvider extends ChangeNotifier {
       final data = await _apiService.getAnnouncements();
       _announcements = data.map((json) {
         final authorObj = json['author'];
-        final authorName = authorObj is Map ? authorObj['name'] : (json['authorName'] ?? 'College');
-        
+        final authorName = authorObj is Map
+            ? authorObj['name']
+            : (json['authorName'] ?? 'College');
+
         return Announcement(
           id: (json['_id'] ?? json['id']).toString(),
           title: (json['title'] ?? 'Notice').toString(),
-          content: (json['feedText'] ?? json['content'] ?? json['description'] ?? '').toString(),
-          date: DateTime.tryParse(json['createdAt'] ?? json['date'] ?? '') ?? DateTime.now(),
+          content:
+              (json['feedText'] ?? json['content'] ?? json['description'] ?? '')
+                  .toString(),
+          date:
+              DateTime.tryParse(json['createdAt'] ?? json['date'] ?? '') ??
+              DateTime.now(),
           author: authorName?.toString(),
         );
       }).toList();
     } catch (e) {
-      print('Error fetching announcements: $e');
+      debugPrint('Error fetching announcements: $e');
     } finally {
       _isLoading = false;
       notifyListeners();

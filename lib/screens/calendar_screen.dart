@@ -75,7 +75,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
               const Divider(),
               Expanded(
-                child: _buildEventList(timetable.periodsForDate(_selectedDay ?? _focusedDay)),
+                child: _buildEventList(
+                  timetable.periodsForDate(_selectedDay ?? _focusedDay),
+                ),
               ),
             ],
           );
@@ -86,9 +88,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildEventList(List<TimetableEntry> events) {
     if (events.isEmpty) {
-      return const Center(
-        child: Text('No classes scheduled for this day.'),
-      );
+      return const Center(child: Text('No classes scheduled for this day.'));
     }
 
     return ListView.builder(
@@ -97,10 +97,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       itemBuilder: (context, index) {
         final entry = events[index];
         final now = DateTime.now();
-        final sessionDate = entry.sessionDate != null ? DateTime.parse(entry.sessionDate!) : now;
+        final sessionDate = entry.sessionDate != null
+            ? DateTime.parse(entry.sessionDate!)
+            : now;
         final startDt = entry.startDateTime(sessionDate);
         final isPast = startDt.isBefore(now);
-        
+
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
@@ -127,7 +129,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     color: entry.isAttended! ? Colors.green : Colors.red,
                   )
                 else if (isPast)
-                  Icon(Icons.help_outline, color: Theme.of(context).disabledColor),
+                  Icon(
+                    Icons.help_outline,
+                    color: Theme.of(context).disabledColor,
+                  ),
                 const SizedBox(width: 8),
                 const Icon(Icons.chevron_right),
               ],
@@ -154,12 +159,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
             children: [
               Text(
                 entry.subjectName,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Period ${entry.period} • ${entry.startTime} - ${entry.endTime}',
-                style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6)),
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                ),
               ),
               const Divider(height: 32),
               const Text(
@@ -171,8 +183,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 entry.topic ?? 'No topic recorded for this session.',
                 style: TextStyle(
                   fontSize: 15,
-                  fontStyle: entry.topic == null ? FontStyle.italic : FontStyle.normal,
-                  color: entry.topic == null ? Theme.of(context).disabledColor : null,
+                  fontStyle: entry.topic == null
+                      ? FontStyle.italic
+                      : FontStyle.normal,
+                  color: entry.topic == null
+                      ? Theme.of(context).disabledColor
+                      : null,
                 ),
               ),
               const SizedBox(height: 24),
@@ -185,7 +201,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      entry.isAttended! ? 'You attended this class' : 'You missed this class',
+                      entry.isAttended!
+                          ? 'You attended this class'
+                          : 'You missed this class',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: entry.isAttended! ? Colors.green : Colors.red,
