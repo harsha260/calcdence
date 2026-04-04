@@ -8,7 +8,7 @@ class TimetableEntry {
   final String startTime; // e.g. "09:00"
   final String endTime;   // e.g. "09:50"
   final String? sessionDate; // e.g. "2026-02-25" (ISO format)
-  final bool? isAttended;    // true=✅, false=❌, null=Upcoming/Unknown
+  final bool? isAttended;    // true=attended, false=absent, null=Upcoming/Unknown
   final String? topic;       // Session topic from portal
 
   const TimetableEntry({

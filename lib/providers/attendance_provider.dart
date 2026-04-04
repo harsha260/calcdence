@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../models/attendance.dart';
 import '../models/subject.dart';
 import '../models/timetable_entry.dart';
 import '../services/api_service.dart' as api;
+import '../services/notification_service.dart';
 import 'dart:math' as math;
 
 /// Attendance loading state enum
@@ -163,6 +166,9 @@ class AttendanceProvider extends ChangeNotifier {
       if (allSessions.isNotEmpty) {
         print('AttendanceProvider: First session sample: ${allSessions.first.subjectName} ${allSessions.first.sessionDate} att:${allSessions.first.isAttended}');
       }
+      
+      await _checkAndNotifyAbsences(subjects);
+
       _state = AttendanceState.loaded;
     } catch (e) {
       _errorMessage = e.toString();
@@ -170,6 +176,73 @@ class AttendanceProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Compares fetched attendance with local stored attendance to find new absences.
+  Future<void> _checkAndNotifyAbsences(List<Subject> newSubjects) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const storageKey = 'last_known_attendance';
+      final lastKnownString = prefs.getString(storageKey);
+      
+      if (lastKnownString != null) {
+        final Map<String, dynamic> lastKnown = jsonDecode(lastKnownString);
+        for (final subject in newSubjects) {
+          final String key = subject.subjectCode.toString();
+          if (lastKnown.containsKey(key)) {
+            final oldAttended = lastKnown[key]['attended'] as int;
+            final oldConducted = lastKnown[key]['conducted'] as int;
+            
+            // Check if conducted increased but attended did NOT (meaning absent)
+            final diffConducted = subject.totalClasses - oldConducted;
+            final diffAttended = subject.classesAttended - oldAttended;
+            
+            if (diffConducted > 0 && diffAttended < diffConducted) {
+              // Absent detected!
+              final absentsCount = diffConducted - diffAttended;
+              print('AttendanceProvider: Detected $absentsCount new absence(s) for ${subject.subjectName}');
+              
+              // Find the most recent absent session from our fetched allSessions
+              // Sort sessions descending to find the latest
+              final recentAbsences = _allSessions
+                  .where((s) => s.subjectId == subject.subjectCode && s.isAttended == false)
+                  .toList()
+                ..sort((a, b) {
+                  final aDate = a.sessionDate ?? '';
+                  final bDate = b.sessionDate ?? '';
+                  if (aDate != bDate) return bDate.compareTo(aDate);
+                  // If same date, sort by period descending
+                  return b.period.compareTo(a.period);
+                });
+
+              TimetableEntry? latestAbsence;
+              if (recentAbsences.isNotEmpty) {
+                latestAbsence = recentAbsences.first;
+              }
+
+              await NotificationService().showAbsentNotification(
+                subjectName: subject.subjectName,
+                date: latestAbsence?.sessionDate ?? DateTime.now().toLocal().toString().split(' ')[0],
+                period: latestAbsence?.period,
+                time: latestAbsence?.startTime,
+              );
+            }
+          }
+        }
+      }
+      
+      // Store current state for next time
+      final Map<String, dynamic> newState = {};
+      for (final subject in newSubjects) {
+        newState[subject.subjectCode.toString()] = {
+          'attended': subject.classesAttended,
+          'conducted': subject.totalClasses,
+        };
+      }
+      await prefs.setString(storageKey, jsonEncode(newState));
+    } catch (e) {
+      print('AttendanceProvider: Error checking absences: $e');
+    }
   }
 
   /// Refresh attendance data

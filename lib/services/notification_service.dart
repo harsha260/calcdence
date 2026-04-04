@@ -168,8 +168,8 @@ class NotificationService {
       if (canScheduleExact) {
         await _plugin.zonedSchedule(
           id,
-          '📚 Class in $minutesBefore min',
-          '${entry.subjectName} — Period ${entry.period} at ${entry.startTime}',
+          'Class in $minutesBefore min',
+          '${entry.subjectName} - Period ${entry.period} at ${entry.startTime}',
           fireAt,
           _details,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -180,8 +180,8 @@ class NotificationService {
         print('[DEBUG] NotificationService: Exact permission missing, falling back to inexact.');
         await _plugin.zonedSchedule(
           id,
-          '📚 Class in $minutesBefore min',
-          '${entry.subjectName} — Period ${entry.period} at ${entry.startTime}',
+          'Class in $minutesBefore min',
+          '${entry.subjectName} - Period ${entry.period} at ${entry.startTime}',
           fireAt,
           _details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -196,8 +196,8 @@ class NotificationService {
       try {
         await _plugin.zonedSchedule(
           _notifId(entry, date),
-          '📚 Class in $minutesBefore min',
-          '${entry.subjectName} — Period ${entry.period} at ${entry.startTime}',
+          'Class in $minutesBefore min',
+          '${entry.subjectName} - Period ${entry.period} at ${entry.startTime}',
           fireAt,
           _details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -216,8 +216,45 @@ class NotificationService {
     print('NotificationService: Showing instant test notification');
     await _plugin.show(
       8888,
-      '🔔 Test Notification',
+      'Test Notification',
       'If you see this, basic notifications are WORKING!',
+      _details,
+    );
+  }
+    }
+  }
+
+  /// Show a simple immediate notification for absent class.
+  Future<void> showAbsentNotification({
+    required String subjectName,
+    required String date,
+    int? period,
+    String? time,
+  }) async {
+    if (!_initialized) await initialize();
+    print('NotificationService: Showing absent notification for $subjectName');
+    
+    String message = 'You were marked absent for $subjectName on $date.';
+    if (period != null && time != null) {
+      message = 'You were marked absent for $subjectName (Period $period at $time) on $date.';
+    }
+
+    await _plugin.show(
+      DateTime.now().millisecond,
+      'Marked Absent',
+      message,
+      _details,
+    );
+  }
+
+  /// Show a simple immediate notification for morning college check.
+  Future<void> showMorningCollegeCheck() async {
+    if (!_initialized) await initialize();
+    print('NotificationService: Showing morning college check');
+    await _plugin.show(
+      9999, // Fixed ID so it replaces previous ones
+      'Going to college today?',
+      'You have classes scheduled today. Tap to update your status.',
       _details,
     );
   }
@@ -241,9 +278,68 @@ class NotificationService {
     int minutesBefore = 10,
   }) async {
     await cancelAll(); // Clean slate for simplicity in debugging
+    
+    if (entries.isNotEmpty) {
+      await scheduleMorningToggle(date: date);
+    }
+    
     for (final e in entries) {
       await scheduleClassReminder(
           entry: e, date: date, minutesBefore: minutesBefore);
+    }
+  }
+
+  /// Schedule morning toggle at 8:00 AM if there are classes today.
+  Future<void> scheduleMorningToggle({required DateTime date}) async {
+    if (!_initialized) await initialize();
+    
+    final nowKolkata = tz.TZDateTime.now(tz.local);
+    final scheduledDate = tz.TZDateTime(
+      tz.local,
+      date.year,
+      date.month,
+      date.day,
+      8,
+      0,
+      0,
+    );
+
+    if (scheduledDate.isBefore(nowKolkata)) return;
+
+    try {
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      bool canScheduleExact = true;
+      if (androidPlugin != null) {
+        canScheduleExact = await androidPlugin.canScheduleExactNotifications() ?? false;
+      }
+
+      if (canScheduleExact) {
+        await _plugin.zonedSchedule(
+          8000, // Static ID for morning toggle
+          'Going to college today?',
+          'You have classes today. Are you going to attend?',
+          scheduledDate,
+          _details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } else {
+        await _plugin.zonedSchedule(
+          8000,
+          'Going to college today?',
+          'You have classes today. Are you going to attend?',
+          scheduledDate,
+          _details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
+      print('[DEBUG] NotificationService: Scheduled Morning Toggle at 8:00 AM');
+    } catch (e) {
+      print('[DEBUG] NotificationService: Failed scheduling morning toggle: $e');
     }
   }
 
